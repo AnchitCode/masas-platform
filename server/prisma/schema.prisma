@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  PHARMACY
+  ADMIN
+}
+
+enum PharmacyStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ==================== MODELS ====================
+
+/// User account — only PHARMACY and ADMIN roles at MVP (no customer auth)
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(PHARMACY)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  pharmacy Pharmacy?
+
+  @@map("users")
+}
+
+/// Pharmacy profile — linked 1:1 with a PHARMACY user
+model Pharmacy {
+  id            String         @id @default(uuid())
+  userId        String         @unique @map("user_id")
+  name          String
+  licenseNumber String         @unique @map("license_number")
+  address       String
+  phone         String
+  latitude      Float
+  longitude     Float
+  status        PharmacyStatus @default(PENDING)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inventory PharmacyInventory[]
+
+  @@index([status])
+  @@map("pharmacies")
+}
+
+/// Global medicine catalog — shared across all pharmacies
+model MedicineCatalog {
+  id          String   @id @default(uuid())
+  name        String   // stored lowercase for consistent matching
+  genericName String?  @map("generic_name")
+  manufacturer String?
+  category    String?
+  dosageForm  String?  @map("dosage_form")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  inventory PharmacyInventory[]
+
+  @@index([name])
+  @@index([genericName])
+  @@map("medicine_catalog")
+}
+
+/// Pharmacy-specific inventory — links a pharmacy to a medicine with stock info
+model PharmacyInventory {
+  id          String   @id @default(uuid())
+  pharmacyId  String   @map("pharmacy_id")
+  medicineId  String   @map("medicine_id")
+  price       Float
+  quantity    Int      @default(0)
+  expiryDate  DateTime? @map("expiry_date")
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  pharmacy Pharmacy        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  medicine MedicineCatalog @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  // A pharmacy can only have one entry per medicine
+  @@unique([pharmacyId, medicineId])
+  @@index([pharmacyId])
+  @@index([medicineId])
+  @@index([isAvailable])
+  @@map("pharmacy_inventory")
+}
