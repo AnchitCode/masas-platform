@@ -55,7 +55,10 @@ app.get('/api/v1/health', (req, res) => {
 const authRoutes = require('./modules/auth/auth.routes');
 app.use('/api/v1/auth', authRoutes);
 
-// TODO: Phase 2 — Pharmacy routes
+// Pharmacy routes
+const pharmacyRoutes = require('./modules/pharmacy/pharmacy.routes');
+app.use('/api/v1/pharmacy', pharmacyRoutes);
+
 // TODO: Phase 3 — Catalog & Inventory routes
 // TODO: Phase 5 — Admin routes
 
