@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await authService.getMe();
-      setUser(response.data.user);
+      setUser(response?.data?.user ?? null);
     } catch {
       // Token is invalid or expired — clear it
       localStorage.removeItem('accessToken');
@@ -40,13 +40,13 @@ export function AuthProvider({ children }) {
 
   const login = async (data) => {
     const response = await authService.login(data);
-    setUser(response.data.user);
+    setUser(response?.data?.user ?? null);
     return response;
   };
 
   const register = async (data) => {
     const response = await authService.register(data);
-    setUser(response.data.user);
+    setUser(response?.data?.user ?? null);
     return response;
   };
 
@@ -58,7 +58,7 @@ export function AuthProvider({ children }) {
   const refreshUser = async () => {
     try {
       const response = await authService.getMe();
-      setUser(response.data.user);
+      setUser(response?.data?.user ?? null);
     } catch {
       setUser(null);
     }

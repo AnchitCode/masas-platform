@@ -14,9 +14,11 @@ export default function Dashboard() {
     const fetchProfile = async () => {
       try {
         const response = await pharmacyService.getOwnProfile();
-        setPharmacy(response.data.pharmacy);
-        setHasProfile(true);
+        const p = response?.data?.pharmacy ?? null;
+        setPharmacy(p);
+        setHasProfile(!!p);
       } catch {
+        setPharmacy(null);
         setHasProfile(false);
       } finally {
         setLoading(false);

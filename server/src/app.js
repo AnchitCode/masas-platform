@@ -59,7 +59,14 @@ app.use('/api/v1/auth', authRoutes);
 const pharmacyRoutes = require('./modules/pharmacy/pharmacy.routes');
 app.use('/api/v1/pharmacy', pharmacyRoutes);
 
-// TODO: Phase 3 — Catalog & Inventory routes
+// Catalog routes
+const catalogRoutes = require('./modules/catalog/catalog.routes');
+app.use('/api/v1/catalog', catalogRoutes);
+
+// Inventory routes
+const inventoryRoutes = require('./modules/inventory/inventory.routes');
+app.use('/api/v1/inventory', inventoryRoutes);
+
 // TODO: Phase 5 — Admin routes
 
 // --------------- Error Handling ---------------

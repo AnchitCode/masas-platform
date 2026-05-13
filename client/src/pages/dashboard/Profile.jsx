@@ -28,7 +28,12 @@ export default function Profile() {
     const fetchProfile = async () => {
       try {
         const response = await pharmacyService.getOwnProfile();
-        const p = response.data.pharmacy;
+        const p = response?.data?.pharmacy;
+        if (!p) {
+          setPharmacy(null);
+          setIsEditing(false);
+          return;
+        }
         setPharmacy(p);
         setFormData({
           name: p.name,
@@ -74,11 +79,11 @@ export default function Profile() {
         // eslint-disable-next-line no-unused-vars
         const { licenseNumber, ...updateData } = payload;
         const response = await pharmacyService.updateProfile(updateData);
-        setPharmacy(response.data.pharmacy);
+        setPharmacy(response?.data?.pharmacy ?? null);
         setSuccess('Profile updated successfully!');
       } else {
         const response = await pharmacyService.createProfile(payload);
-        setPharmacy(response.data.pharmacy);
+        setPharmacy(response?.data?.pharmacy ?? null);
         setIsEditing(true);
         setSuccess('Pharmacy profile created! Awaiting verification.');
         await refreshUser();

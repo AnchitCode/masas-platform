@@ -34,4 +34,5 @@ const auth = (req, res, next) => {
   }
 };
 
+console.log('AUTH EXPORT:', typeof auth);
 module.exports = auth;

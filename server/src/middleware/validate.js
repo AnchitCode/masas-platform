@@ -17,11 +17,16 @@ const validate = (schema, source = 'body') => {
 
     if (!result.success) {
       const formattedErrors = result.error.issues.map((err) => ({
-        field: err.path.join('.'),
+        field: err.path.length ? err.path.join('.') : '(request)',
         message: err.message,
       }));
 
-      return next(ApiError.badRequest('Validation failed', formattedErrors));
+      const detailMessage =
+        formattedErrors.length === 1
+          ? formattedErrors[0].message
+          : `Validation failed: ${formattedErrors.map((e) => `${e.field} — ${e.message}`).join('; ')}`;
+
+      return next(ApiError.badRequest(detailMessage, formattedErrors));
     }
 
     // Replace the source with the parsed (and potentially transformed) data
