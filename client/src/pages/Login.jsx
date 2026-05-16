@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Pill, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
+import AlertBanner from '../components/ui/AlertBanner';
+import { FormField, Input } from '../components/ui/forms';
+import { Button } from '../components/ui/Button';
+import { APP_NAME } from '../utils/constants';
 
 export default function Login() {
   const { login } = useAuth();
@@ -32,89 +36,68 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 bg-bg/50">
-      <div className="w-full max-w-md animate-fade-in">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="bg-primary/10 p-2 rounded-xl">
-              <Pill className="w-8 h-8 text-primary" strokeWidth={2.5} />
-            </div>
+    <div className="flex flex-col items-center justify-center page-bg" style={{ minHeight: 'calc(100vh - var(--navbar-height))', padding: '48px 16px' }}>
+      <div className="animate-fade-in" style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+            <div className="navbar-dot" style={{ width: 12, height: 12 }} />
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{APP_NAME}</span>
           </div>
-          <h1 className="text-2xl font-bold text-text tracking-tight">Welcome back</h1>
-          <p className="text-text-secondary mt-1.5 text-sm">
-            Log in to manage your pharmacy account
-          </p>
+          <h1 className="masas-typography-page-title" style={{ fontSize: 24 }}>Welcome back</h1>
         </div>
 
-        {/* Form Card */}
-        <div className="card p-6 sm:p-8 shadow-sm">
-          {error && (
-            <div className="flex items-start gap-3 p-3 mb-5 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
+        <div className="card" style={{ padding: 40 }}>
+          {error ? (
+            <div style={{ marginBottom: 20 }}>
+              <AlertBanner variant="error" title="Sign-in failed">
+                {error}
+              </AlertBanner>
             </div>
-          )}
+          ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="email" className="label text-text-secondary">Email address</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <input
-                  id="email"
-                  type="email"
-                  className="input pl-10"
-                  placeholder="you@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  autoComplete="email"
-                />
-              </div>
-            </div>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <FormField label="Email address">
+              <Input
+                id="email"
+                type="email"
+                leftIcon={Mail}
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                autoComplete="email"
+              />
+            </FormField>
 
-            <div>
-              <label htmlFor="password" className="label text-text-secondary">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <input
-                  id="password"
-                  type="password"
-                  className="input pl-10"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-            </div>
+            <FormField label="Password">
+              <Input
+                id="password"
+                type="password"
+                leftIcon={Lock}
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+                autoComplete="current-password"
+              />
+            </FormField>
 
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary w-full shadow-sm py-2.5 mt-2"
-              disabled={loading}
+              size="lg"
+              style={{ width: '100%', marginTop: 8 }}
+              rightIcon={ArrowRight}
+              isLoading={loading}
             >
-              {loading ? (
-                <>
-                  <div className="spinner border-white border-t-white/30" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }}></div>
-                  Authenticating...
-                </>
-              ) : (
-                <>
-                  Sign in <ArrowRight className="w-4 h-4 ml-1" />
-                </>
-              )}
-            </button>
+              Sign in
+            </Button>
           </form>
-
         </div>
           
-        <p className="text-center text-sm text-text-secondary mt-6">
+        <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted)', marginTop: 24 }}>
           Don&apos;t have an account?{' '}
-          <Link to="/register" className="text-primary font-medium hover:text-primary-dark transition-colors">
-            Create an account
+          <Link to="/register" style={{ color: 'var(--green-600)', fontWeight: 500 }}>
+            Register
           </Link>
         </p>
       </div>

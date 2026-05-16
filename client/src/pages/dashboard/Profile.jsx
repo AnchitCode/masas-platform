@@ -2,7 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import pharmacyService from '../../services/pharmacyService';
 import { useAuth } from '../../context/AuthContext';
-import { Store, MapPin, Phone, FileText, AlertCircle, CheckCircle, Map, Crosshair } from 'lucide-react';
+import { Store, MapPin, Phone, FileText, AlertCircle, Map, Crosshair } from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader';
+import AlertBanner from '../../components/ui/AlertBanner';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { FormSection, FormField, Input, TextArea, FormActions } from '../../components/ui/forms';
+import { Button } from '../../components/ui/Button';
 
 export default function Profile() {
   const { refreshUser } = useAuth();
@@ -118,195 +124,162 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="spinner"></div>
+      <div style={{ display: 'flex', minHeight: '320px', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner text="Loading profile…" />
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in max-w-3xl mx-auto pb-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text tracking-tight">
-          {isEditing ? 'Pharmacy Settings' : 'Setup Pharmacy'}
-        </h1>
-        <p className="text-text-secondary mt-1.5 text-sm">
-          {isEditing
-            ? 'Manage your pharmacy details and location settings'
-            : 'Enter your pharmacy details to request verification'}
-        </p>
-      </div>
+    <div style={{ maxWidth: '768px', margin: '0 auto', paddingBottom: '48px' }}>
+      <PageHeader
+        title={isEditing ? 'Pharmacy settings' : 'Set up your pharmacy'}
+        description={
+          isEditing
+            ? 'Update your public details and map pin. License number is locked after registration.'
+            : 'Tell us about your pharmacy so we can verify you and connect patients to your stock.'
+        }
+      />
 
       {pharmacy && (
-        <div className="mb-6 flex items-center gap-3 p-4 bg-surface rounded-xl border border-border shadow-sm">
-          <div className={`p-2 rounded-lg ${
-            pharmacy.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-600' : 
-            pharmacy.status === 'PENDING' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
-          }`}>
-            <Store className="w-5 h-5" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)', background: 'var(--surface)', padding: '20px', boxShadow: 'var(--shadow-sm)', marginBottom: '32px' }}>
+          <div
+            style={{ display: 'flex', width: '40px', height: '40px', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-lg)', border: '1px solid',
+              ...(pharmacy.status === 'VERIFIED' ? { background: 'var(--green-50)', color: 'var(--green-600)', borderColor: 'var(--green-200)' } :
+                  pharmacy.status === 'PENDING' ? { background: '#fffbeb', color: '#d97706', borderColor: '#fde68a' } :
+                  pharmacy.status === 'REJECTED' ? { background: '#fef2f2', color: '#dc2626', borderColor: '#fecaca' } :
+                  { background: 'var(--slate-50)', color: 'var(--slate-500)', borderColor: 'var(--border)' })
+            }}
+          >
+            <Store style={{ width: '20px', height: '20px' }} aria-hidden />
           </div>
           <div>
-            <p className="text-sm font-medium text-text">Account Status</p>
-            <p className="text-xs text-text-muted mt-0.5">Current verification standing</p>
+            <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text)' }}>Account Status</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>Current verification standing</p>
           </div>
-          <div className="ml-auto">
-            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-              pharmacy.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 
-              pharmacy.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
-            }`}>
+          <div style={{ marginLeft: 'auto' }}>
+            <StatusBadge variant={
+              pharmacy.status === 'VERIFIED' ? 'success' : 
+              pharmacy.status === 'PENDING' ? 'warning' : 'danger'
+            }>
               {pharmacy.status}
-            </span>
+            </StatusBadge>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="flex items-start gap-3 p-4 mb-6 rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm shadow-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">There was a problem</p>
-            <p className="mt-1 opacity-90">{error}</p>
-          </div>
+        <div style={{ marginBottom: '24px' }}>
+          <AlertBanner variant="error" title="Something went wrong">
+            {error}
+          </AlertBanner>
         </div>
       )}
 
       {success && (
-        <div className="flex items-start gap-3 p-4 mb-6 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm shadow-sm">
-          <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">Success</p>
-            <p className="mt-1 opacity-90">{success}</p>
-          </div>
+        <div style={{ marginBottom: '24px' }}>
+          <AlertBanner variant="success" title="Saved">
+            {success}
+          </AlertBanner>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section 1: Basic Info */}
-        <div className="card overflow-hidden">
-          <div className="bg-surface-hover/30 px-6 py-4 border-b border-border">
-            <h2 className="font-semibold text-text">General Information</h2>
-            <p className="text-xs text-text-muted mt-1">Publicly visible details about your pharmacy</p>
-          </div>
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="md:col-span-2">
-                <label htmlFor="name" className="label text-text-secondary">Pharmacy Name</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="w-4 h-4 text-text-muted" />
-                  </div>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    className="input pl-9"
-                    placeholder="E.g. HealthPlus Pharmacy"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <FormSection title="General Information" description="Publicly visible details about your pharmacy">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <FormField label="Pharmacy Name">
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  leftIcon={Store}
+                  placeholder="E.g. HealthPlus Pharmacy"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </FormField>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
               <div>
-                <label htmlFor="licenseNumber" className="label text-text-secondary">License Number</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FileText className="w-4 h-4 text-text-muted" />
-                  </div>
-                  <input
+                <FormField 
+                  label="License Number" 
+                  helperText={isEditing ? <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle style={{ width: '12px', height: '12px' }} /> Cannot be changed after registration</span> : undefined}
+                >
+                  <Input
                     id="licenseNumber"
                     name="licenseNumber"
                     type="text"
-                    className={`input pl-9 ${isEditing ? 'bg-surface-hover text-text-muted cursor-not-allowed border-dashed' : ''}`}
+                    leftIcon={FileText}
                     placeholder="PH-2026-001"
                     value={formData.licenseNumber}
                     onChange={handleChange}
                     required
                     disabled={isEditing}
                   />
-                </div>
-                {isEditing && (
-                  <p className="text-[11px] text-text-muted mt-1.5 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> Cannot be changed after registration
-                  </p>
-                )}
+                </FormField>
               </div>
 
               <div>
-                <label htmlFor="phone" className="label text-text-secondary">Contact Phone</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="w-4 h-4 text-text-muted" />
-                  </div>
-                  <input
+                <FormField label="Contact Phone">
+                  <Input
                     id="phone"
                     name="phone"
                     type="tel"
-                    className="input pl-9"
+                    leftIcon={Phone}
                     placeholder="+91 98765 43210"
                     value={formData.phone}
                     onChange={handleChange}
                     required
                   />
-                </div>
+                </FormField>
               </div>
             </div>
           </div>
-        </div>
+        </FormSection>
 
-        {/* Section 2: Location */}
-        <div className="card overflow-hidden">
-          <div className="bg-surface-hover/30 px-6 py-4 border-b border-border flex justify-between items-center">
-            <div>
-              <h2 className="font-semibold text-text">Location Details</h2>
-              <p className="text-xs text-text-muted mt-1">Address and GPS coordinates for the map</p>
-            </div>
-          </div>
-          <div className="p-6 space-y-5">
-            <div>
-              <label htmlFor="address" className="label text-text-secondary">Street Address</label>
-              <div className="relative">
-                <div className="absolute top-2.5 left-0 pl-3 flex items-start pointer-events-none">
-                  <MapPin className="w-4 h-4 text-text-muted" />
-                </div>
-                <textarea
-                  id="address"
-                  name="address"
-                  className="input pl-9"
-                  rows={2}
-                  placeholder="123 Main Street, City, State, PIN"
-                  value={formData.address}
-                  onChange={handleChange}
-                  required
-                  style={{ resize: 'vertical' }}
-                />
-              </div>
-            </div>
+        <FormSection title="Location Details" description="Address and GPS coordinates for the map">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <FormField label="Street Address">
+              <TextArea
+                id="address"
+                name="address"
+                leftIcon={MapPin}
+                rows={2}
+                placeholder="123 Main Street, City, State, PIN"
+                value={formData.address}
+                onChange={handleChange}
+                required
+                style={{ resize: 'vertical' }}
+              />
+            </FormField>
 
-            <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-semibold text-text flex items-center gap-2">
-                  <Map className="w-4 h-4 text-primary" />
+            <div style={{ padding: '16px', backgroundColor: 'var(--green-50)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--green-200)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <label style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Map style={{ width: '16px', height: '16px', color: 'var(--green-600)' }} />
                   GPS Coordinates
                 </label>
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={handleGetLocation}
-                  className="btn btn-secondary btn-sm bg-white hover:bg-surface text-primary border-primary/20 shadow-sm"
+                  leftIcon={Crosshair}
                 >
-                  <Crosshair className="w-3.5 h-3.5" />
                   Auto-detect
-                </button>
+                </Button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div>
-                  <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Latitude</p>
-                  <input
+                  <p style={{ fontSize: '11px', fontWeight: '500', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Latitude</p>
+                  <Input
                     name="latitude"
                     type="number"
                     step="any"
-                    className="input bg-white"
+                    style={{ backgroundColor: '#fff' }}
                     placeholder="28.6139"
                     value={formData.latitude}
                     onChange={handleChange}
@@ -314,12 +287,12 @@ export default function Profile() {
                   />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Longitude</p>
-                  <input
+                  <p style={{ fontSize: '11px', fontWeight: '500', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Longitude</p>
+                  <Input
                     name="longitude"
                     type="number"
                     step="any"
-                    className="input bg-white"
+                    style={{ backgroundColor: '#fff' }}
                     placeholder="77.2090"
                     value={formData.longitude}
                     onChange={handleChange}
@@ -329,36 +302,25 @@ export default function Profile() {
               </div>
             </div>
           </div>
-        </div>
+        </FormSection>
 
-        {/* Submit Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4">
+        <FormActions>
           {isEditing && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => navigate('/dashboard')}
-              className="btn btn-ghost px-6"
             >
               Cancel
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="submit"
-            className="btn btn-primary px-8 shadow-md hover:shadow-lg"
-            disabled={saving}
+            isLoading={saving}
           >
-            {saving ? (
-              <>
-                <div className="spinner border-white border-t-white/30" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }}></div>
-                Saving...
-              </>
-            ) : isEditing ? (
-              'Save Changes'
-            ) : (
-              'Submit for Verification'
-            )}
-          </button>
-        </div>
+            {isEditing ? 'Save Changes' : 'Submit for Verification'}
+          </Button>
+        </FormActions>
       </form>
     </div>
   );

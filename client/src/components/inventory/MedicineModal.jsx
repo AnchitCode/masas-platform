@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import catalogService from '../../services/catalogService';
 import inventoryService from '../../services/inventoryService';
 import { Search, X, Loader2, AlertCircle } from 'lucide-react';
+import { FormField, Input } from '../ui/forms';
+import { Button } from '../ui/Button';
 
 function formatInventoryApiError(err) {
   const data = err.response?.data;
@@ -46,7 +48,6 @@ export default function MedicineModal({ isOpen, onClose, onSuccess, initialData 
       setSearchQuery(initialData.medicine?.name ?? '');
     } else {
       // Reset form
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         medicineName: '',
         genericName: '',
@@ -181,63 +182,66 @@ export default function MedicineModal({ isOpen, onClose, onSuccess, initialData 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-surface w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="modal-backdrop" style={{ zIndex: 100 }}>
+      <div className="modal-panel">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-surface-hover/30">
-          <h2 className="text-lg font-bold text-text tracking-tight">
+        <div className="modal-header">
+          <h2 className="modal-header-title">
             {isEdit ? 'Edit Medicine' : 'Add Medicine'}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-md text-text-muted hover:bg-border hover:text-text transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="modal-close">
+            <X style={{ width: '20px', height: '20px' }} />
           </button>
         </div>
 
         {/* Form Body */}
-        <div className="p-6 overflow-y-auto">
+        <div className="modal-body">
           {error && (
-            <div className="flex items-start gap-2 p-3 mb-5 rounded-lg bg-red-50 text-danger text-sm border border-red-200">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span className="whitespace-pre-line">{error}</span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px', marginBottom: '20px', borderRadius: 'var(--radius-input)', background: '#fef2f2', color: '#dc2626', fontSize: '13px', border: '1px solid #fecaca' }}>
+              <AlertCircle style={{ width: '16px', height: '16px', flexShrink: 0, marginTop: '2px' }} />
+              <span style={{ whiteSpace: 'pre-line' }}>{error}</span>
             </div>
           )}
 
-          <form id="medicine-form" onSubmit={handleSubmit} className="space-y-5">
+          <form id="medicine-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Search/Name */}
-            <div ref={wrapperRef} className="relative">
-              <label className="label text-text-secondary">Medicine Name</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <input
-                  type="text"
-                  className={`input pl-9 ${isEdit ? 'bg-surface-hover text-text-muted cursor-not-allowed border-dashed' : ''}`}
-                  placeholder="Type to search global catalog..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  onFocus={() => { if (!isEdit && suggestions.length > 0) setShowSuggestions(true); }}
-                  required
-                  disabled={isEdit}
-                  autoComplete="off"
-                />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted animate-spin" />
-                )}
-              </div>
+            <div ref={wrapperRef} style={{ position: 'relative', zIndex: 20 }}>
+              <FormField label="Medicine Name" required>
+                <div style={{ position: 'relative' }}>
+                  <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--muted)', zIndex: 10, pointerEvents: 'none' }} />
+                  <Input
+                    type="text"
+                    style={{ paddingLeft: '36px' }}
+                    placeholder="Type to search global catalog..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onFocus={() => { if (!isEdit && suggestions.length > 0) setShowSuggestions(true); }}
+                    required
+                    disabled={isEdit}
+                    autoComplete="off"
+                  />
+                  {searching && (
+                    <Loader2 className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--muted)' }} />
+                  )}
+                </div>
+              </FormField>
 
               {/* Suggestions Dropdown */}
               {!isEdit && showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-surface border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div style={{ position: 'absolute', zIndex: 10, width: '100%', marginTop: '4px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', boxShadow: 'var(--shadow-lg)', maxHeight: '192px', overflowY: 'auto' }}>
                   {suggestions.map((med) => (
                     <button
                       key={med.id}
                       type="button"
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-primary/5 hover:text-primary transition-colors border-b border-border last:border-0"
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px', transition: 'background-color var(--duration) var(--ease), color var(--duration) var(--ease)', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--green-50)'; e.currentTarget.style.color = 'var(--green-600)'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'inherit'; }}
                       onClick={() => handleSelectSuggestion(med)}
                     >
-                      <span className="font-semibold text-text">{med.name}</span>
+                      <span style={{ fontWeight: '600', color: 'var(--text)' }}>{med.name}</span>
                       {med.genericName && (
-                        <span className="block text-xs text-text-muted mt-0.5">{med.genericName}</span>
+                        <span style={{ display: 'block', fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>{med.genericName}</span>
                       )}
                     </button>
                   ))}
@@ -246,93 +250,79 @@ export default function MedicineModal({ isOpen, onClose, onSuccess, initialData 
             </div>
 
             {/* Generic Name */}
-            <div>
-              <label className="label text-text-secondary">Generic Name (Optional)</label>
-              <input
+            <FormField label="Generic Name (Optional)">
+              <Input
                 type="text"
                 name="genericName"
-                className={`input ${isEdit ? 'bg-surface-hover text-text-muted cursor-not-allowed border-dashed' : ''}`}
                 placeholder="E.g. Paracetamol"
                 value={formData.genericName}
                 onChange={handleChange}
                 disabled={isEdit}
               />
-            </div>
+            </FormField>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label text-text-secondary">Price (₹)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted font-medium">₹</span>
-                  <input
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <FormField label="Price (₹)" required>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontWeight: '500', zIndex: 10, pointerEvents: 'none' }}>₹</span>
+                  <Input
                     type="number"
                     name="price"
                     step="0.01"
                     min="0.01"
-                    className="input pl-8"
+                    style={{ paddingLeft: '32px' }}
                     placeholder="0.00"
                     value={formData.price}
                     onChange={handleChange}
                     required
                   />
                 </div>
-              </div>
-              <div>
-                <label className="label text-text-secondary">Stock Quantity</label>
-                <input
+              </FormField>
+              <FormField label="Stock Quantity" required>
+                <Input
                   type="number"
                   name="quantity"
                   min="0"
-                  className="input"
                   placeholder="0"
                   value={formData.quantity}
                   onChange={handleChange}
                   required
                 />
-              </div>
+              </FormField>
             </div>
 
-            <div>
-              <label className="label text-text-secondary">Expiry Date (Optional)</label>
-              <input
+            <FormField label="Expiry Date (Optional)">
+              <Input
                 type="date"
                 name="expiryDate"
-                className="input"
                 value={formData.expiryDate}
                 onChange={handleChange}
               />
-            </div>
+            </FormField>
 
             {isEdit && (
-              <label className="flex items-center gap-3 cursor-pointer mt-2 p-3 border border-border rounded-lg bg-surface-hover/30 hover:bg-surface-hover/50 transition-colors">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginTop: '8px', padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', background: 'var(--slate-50)', transition: 'background-color var(--duration) var(--ease)' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--slate-100)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--slate-50)'}>
                 <input
                   type="checkbox"
                   name="isAvailable"
-                  className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                  style={{ width: '16px', height: '16px', borderRadius: '4px', border: '1px solid var(--border)', accentColor: 'var(--green-500)', cursor: 'pointer' }}
                   checked={formData.isAvailable}
                   onChange={handleChange}
                 />
-                <span className="text-sm font-semibold text-text">Currently Available for Sale</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>Currently Available for Sale</span>
               </label>
             )}
           </form>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-surface-hover/30 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="btn btn-ghost px-5">
+        <div className="modal-footer">
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button type="submit" form="medicine-form" className="btn btn-primary px-6 shadow-sm" disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Saving...
-              </>
-            ) : (
-              'Save Medicine'
-            )}
-          </button>
+          </Button>
+          <Button type="submit" form="medicine-form" isLoading={saving}>
+            Save Medicine
+          </Button>
         </div>
 
       </div>
