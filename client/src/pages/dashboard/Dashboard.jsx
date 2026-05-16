@@ -1,12 +1,61 @@
 import { useAuth } from '../../context/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import pharmacyService from '../../services/pharmacyService';
-import { Link } from 'react-router-dom';
-import { Store, Package, AlertCircle, CheckCircle, Clock, ArrowRight, Plus, ExternalLink } from 'lucide-react';
+import inventoryService from '../../services/inventoryService';
+import {
+  Store,
+  Package,
+  Clock,
+  ArrowRight,
+  Plus,
+  CalendarClock,
+  AlertTriangle,
+  ShoppingCart,
+  History,
+  TrendingUp,
+  ShieldCheck,
+} from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader';
+import EmptyState from '../../components/ui/EmptyState';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { Button } from '../../components/ui/Button';
+import {
+  computeOperationalMetrics,
+  buildOperationalTimeline,
+  buildAiInsights,
+} from '../../lib/dashboardMetrics';
+import AiInsightCard from '../../components/dashboard/AiInsightCard';
+import HealthScorePanel from '../../components/dashboard/HealthScorePanel';
+
+function greetingForHour() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function KpiTile({ icon: Icon, label, value, hint, tone = 'success' }) {
+  return (
+    <div className="kpi-tile">
+      <div className="kpi-header">
+        <div>
+          <p className="kpi-label">{label}</p>
+          <p className="kpi-value">{value}</p>
+        </div>
+        <span className={`kpi-icon-wrap kpi-${tone}`}>
+          <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+        </span>
+      </div>
+      {hint && <p className="kpi-hint">{hint}</p>}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [pharmacy, setPharmacy] = useState(null);
+  const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasProfile, setHasProfile] = useState(false);
 
@@ -28,189 +77,218 @@ export default function Dashboard() {
     fetchProfile();
   }, []);
 
-  const statusConfig = {
-    PENDING: { 
-      icon: Clock, 
-      color: 'text-amber-600', 
-      bg: 'bg-amber-50', 
-      border: 'border-amber-200', 
-      badge: 'bg-amber-100 text-amber-800', 
-      text: 'Pending Review' 
-    },
-    VERIFIED: { 
-      icon: CheckCircle, 
-      color: 'text-emerald-600', 
-      bg: 'bg-emerald-50', 
-      border: 'border-emerald-200', 
-      badge: 'bg-emerald-100 text-emerald-800', 
-      text: 'Verified Active' 
-    },
-    REJECTED: { 
-      icon: AlertCircle, 
-      color: 'text-red-600', 
-      bg: 'bg-red-50', 
-      border: 'border-red-200', 
-      badge: 'bg-red-100 text-red-800', 
-      text: 'Action Required' 
-    },
-  };
+  useEffect(() => {
+    if (!pharmacy || pharmacy.status !== 'VERIFIED') {
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const invRes = await inventoryService.getInventory();
+        if (cancelled) return;
+        setInventory(invRes?.data?.inventory ?? []);
+      } catch {
+        if (!cancelled) setInventory([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pharmacy]);
+
+  const workspaceInventory = useMemo(
+    () => (pharmacy?.status === 'VERIFIED' ? inventory : []),
+    [pharmacy?.status, inventory]
+  );
+
+  const metrics = useMemo(() => computeOperationalMetrics(workspaceInventory), [workspaceInventory]);
+  const timeline = useMemo(() => buildOperationalTimeline(workspaceInventory, pharmacy), [workspaceInventory, pharmacy]);
+  const aiInsights = useMemo(() => buildAiInsights(metrics), [metrics]);
+
+  const greetingName = user?.email?.split('@')[0] || 'there';
+  const greeting = greetingForHour();
+  const totalMedicines = pharmacy?._count?.inventory ?? metrics.total;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="spinner"></div>
+      <div style={{ display: 'flex', minHeight: '320px', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner text="Loading your workspace…" />
+      </div>
+    );
+  }
+
+  if (!hasProfile) {
+    return (
+      <div style={{ paddingBottom: '32px' }}>
+        <PageHeader
+          title={`${greeting}, ${greetingName}`}
+          description="Set up your pharmacy profile to unlock inventory, verification, and public discovery."
+        />
+        <EmptyState
+          icon={Store}
+          title="Welcome to MASAS"
+          description="Your account is ready. Complete your pharmacy profile so we can verify your business—then you can list medicines and appear in public search."
+          action={
+            <Button onClick={() => (window.location.href = '/dashboard/profile')} rightIcon={ArrowRight}>
+              Complete pharmacy profile
+            </Button>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in max-w-5xl mx-auto">
-      {/* Page Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '32px' }}>
+      
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1 className="text-3xl font-bold text-text tracking-tight">
-            Dashboard
+          <h1 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text)', marginBottom: '8px' }}>
+            {greeting}, {greetingName}
           </h1>
-          <p className="text-text-secondary mt-1.5 text-sm">
-            Overview and status for {user?.email}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--slate-700)' }}>{pharmacy.name}</span>
+            <StatusBadge variant={pharmacy.status === 'VERIFIED' ? 'success' : pharmacy.status === 'PENDING' ? 'warning' : 'danger'}>
+              {pharmacy.status}
+            </StatusBadge>
+          </div>
         </div>
-        {hasProfile && pharmacy?.status === 'VERIFIED' && (
-          <div className="flex items-center gap-3">
-            <Link to="/dashboard/inventory" className="btn btn-primary btn-sm shadow-sm">
-              <Plus className="w-4 h-4" />
-              Add Medicine
-            </Link>
+        
+        {pharmacy.status === 'VERIFIED' && (
+          <Button
+            onClick={() => (window.location.href = '/dashboard/inventory')}
+            leftIcon={Plus}
+          >
+            Add medicine
+          </Button>
+        )}
+      </div>
+
+      {/* Pending Banner */}
+      {pharmacy.status === 'PENDING' && (
+        <div className="dash-banner dash-banner-warning">
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+            <div className="kpi-icon-wrap kpi-warning">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Verification in progress</h2>
+              <p style={{ marginTop: '4px', fontSize: '13px', color: 'var(--slate-700)' }}>
+                Your pharmacy profile is pending review. This usually takes 1-2 business days.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Health Score */}
+      {pharmacy.status === 'VERIFIED' && (
+        <section>
+          <HealthScorePanel score={metrics.healthScore} tier={metrics.healthTier} />
+        </section>
+      )}
+
+      {/* Metrics Grid */}
+      <section>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
+          <div>
+            <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Operations snapshot</h2>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>Live inventory signals power expiries, stock floors, and AI recommendations.</p>
+          </div>
+          {pharmacy.status === 'VERIFIED' && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '9999px', padding: '4px 10px' }}>
+              <TrendingUp style={{ width: '14px', height: '14px', color: 'var(--green-600)' }} />
+              Live workspace
+            </span>
+          )}
+        </div>
+
+        <div className="kpi-grid">
+          <KpiTile
+            icon={Package}
+            label="Total medicines"
+            value={pharmacy.status === 'VERIFIED' ? metrics.total : totalMedicines}
+            hint="SKUs currently modeled in inventory."
+            tone="success"
+          />
+          <KpiTile
+            icon={AlertTriangle}
+            label="Low stock"
+            value={pharmacy.status === 'VERIFIED' ? metrics.lowStock : '—'}
+            hint="SKUs at or below the operational floor (10 units)."
+            tone="warning"
+          />
+          <KpiTile
+            icon={ShoppingCart}
+            label="Out of stock"
+            value={pharmacy.status === 'VERIFIED' ? metrics.outOfStock : '—'}
+            hint="SKUs unavailable or at zero on-hand quantity."
+            tone="danger"
+          />
+          <KpiTile
+            icon={CalendarClock}
+            label="Expiring soon"
+            value={pharmacy.status === 'VERIFIED' ? metrics.expiringSoon + metrics.expiringCritical + metrics.expired : '—'}
+            hint="Combined near-term and expired lots (90-day horizon)."
+            tone="info"
+          />
+        </div>
+      </section>
+
+      {/* AI Insights & Timeline Grid */}
+      <div className="dashboard-grid">
+        <div className="dashboard-col-5" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <History style={{ width: '16px', height: '16px', color: 'var(--slate-500)' }} />
+            <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Operational timeline</h2>
+          </div>
+          
+          <div className="timeline-list">
+            {timeline.length === 0 ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text)' }}>No operational events yet</p>
+                <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>As you verify, stock, and rotate inventory, MASAS will assemble an audit trail here.</p>
+              </div>
+            ) : (
+              timeline.map(ev => (
+                <div key={ev.id} className={`timeline-item timeline-item-${ev.tone || 'neutral'}`}>
+                  <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>{ev.title}</p>
+                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--slate-600)' }}>{ev.detail}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {pharmacy.status === 'VERIFIED' && (
+          <div className="dashboard-col-7" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck style={{ width: '16px', height: '16px', color: 'var(--slate-500)' }} />
+                <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Operational intelligence</h2>
+              </div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--slate-600)', border: '1px solid var(--border)', borderRadius: '9999px', padding: '4px 10px', background: 'var(--slate-50)' }}>
+                MASAS AI
+              </span>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+              {aiInsights.map((insight) => (
+                <AiInsightCard
+                  key={insight.id}
+                  title={insight.title}
+                  confidence={insight.confidence}
+                  body={insight.body}
+                  action={insight.action}
+                  href={insight.href}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {!hasProfile ? (
-        /* Onboarding State */
-        <div className="card border-dashed border-2 border-border/60 bg-surface-hover/30 p-10 text-center max-w-2xl mx-auto mt-12">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-5">
-            <Store className="w-8 h-8 text-primary" />
-          </div>
-          <h2 className="text-xl font-semibold text-text mb-2 tracking-tight">
-            Welcome to MASAS
-          </h2>
-          <p className="text-text-secondary mb-8 max-w-md mx-auto text-sm leading-relaxed">
-            Your account is ready. To start listing medicines and managing inventory, you need to set up your pharmacy profile for verification.
-          </p>
-          <Link to="/dashboard/profile" className="btn btn-primary shadow-sm px-6">
-            Complete Pharmacy Profile
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </Link>
-        </div>
-      ) : (
-        /* Dashboard Content */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Status Panel */}
-          <div className={`col-span-1 md:col-span-3 rounded-xl border ${statusConfig[pharmacy.status].border} ${statusConfig[pharmacy.status].bg} p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm`}>
-            <div className="flex items-center gap-4">
-              <div className={`p-2.5 bg-white rounded-lg shadow-sm`}>
-                {(() => {
-                  const Icon = statusConfig[pharmacy.status].icon;
-                  return <Icon className={`w-6 h-6 ${statusConfig[pharmacy.status].color}`} />;
-                })()}
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-text">Pharmacy Status</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${statusConfig[pharmacy.status].badge}`}>
-                    {statusConfig[pharmacy.status].text}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="text-sm sm:text-right">
-              {pharmacy.status === 'PENDING' && (
-                 <p className="text-amber-800 font-medium">Review in progress. Usually takes 1-2 business days.</p>
-              )}
-              {pharmacy.status === 'VERIFIED' && (
-                 <p className="text-emerald-800 font-medium">Your pharmacy is active and visible in searches.</p>
-              )}
-              {pharmacy.status === 'REJECTED' && (
-                 <p className="text-red-800 font-medium">Verification failed. Please update your license details.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Pharmacy Profile Card */}
-          <div className="card flex flex-col hover:shadow-md transition-shadow">
-            <div className="p-5 flex-1">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-primary/10 rounded-md">
-                  <Store className="w-5 h-5 text-primary" />
-                </div>
-              </div>
-              <h3 className="font-semibold text-text text-lg mb-1">{pharmacy.name}</h3>
-              <p className="text-sm text-text-secondary line-clamp-2">{pharmacy.address}</p>
-              
-              <div className="mt-4 pt-4 border-t border-border/50">
-                <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">License No.</p>
-                <p className="text-sm font-medium text-text">{pharmacy.licenseNumber}</p>
-              </div>
-            </div>
-            <div className="p-4 bg-surface-hover/50 border-t border-border flex items-center justify-between rounded-b-xl">
-              <Link
-                to="/dashboard/profile"
-                className="text-sm font-medium text-text hover:text-primary transition-colors flex items-center gap-1"
-              >
-                Manage Profile
-              </Link>
-              <ExternalLink className="w-4 h-4 text-text-muted" />
-            </div>
-          </div>
-
-          {/* Inventory Overview Card */}
-          <div className="card flex flex-col hover:shadow-md transition-shadow">
-            <div className="p-5 flex-1">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-indigo-50 rounded-md">
-                  <Package className="w-5 h-5 text-indigo-600" />
-                </div>
-              </div>
-              <h3 className="font-semibold text-text text-lg mb-1">Inventory</h3>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-3xl font-bold tracking-tight text-text">
-                  {pharmacy._count?.inventory || 0}
-                </span>
-                <span className="text-sm text-text-muted font-medium">listed items</span>
-              </div>
-            </div>
-            <div className="p-4 bg-surface-hover/50 border-t border-border flex items-center justify-between rounded-b-xl">
-              <Link
-                to="/dashboard/inventory"
-                className={`text-sm font-medium transition-colors flex items-center gap-1 ${
-                  pharmacy.status === 'VERIFIED' ? 'text-primary hover:text-primary-dark' : 'text-text-muted cursor-not-allowed pointer-events-none'
-                }`}
-              >
-                {pharmacy.status === 'VERIFIED' ? 'Manage Stock' : 'Locked pending verification'}
-              </Link>
-              {pharmacy.status === 'VERIFIED' && <ArrowRight className="w-4 h-4 text-primary" />}
-            </div>
-          </div>
-          
-          {/* Quick Actions (Placeholder for future features) */}
-          <div className="card flex flex-col hover:shadow-md transition-shadow bg-gradient-to-br from-surface to-surface-hover/30">
-             <div className="p-5 flex-1">
-               <h3 className="font-semibold text-text text-sm uppercase tracking-wider mb-4 text-text-muted">Quick Actions</h3>
-               <div className="space-y-3">
-                 <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all group text-left">
-                   <span className="text-sm font-medium text-text group-hover:text-primary">View Analytics</span>
-                   <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary transition-colors" />
-                 </button>
-                 <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all group text-left">
-                   <span className="text-sm font-medium text-text group-hover:text-primary">Contact Support</span>
-                   <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary transition-colors" />
-                 </button>
-               </div>
-             </div>
-          </div>
-
-        </div>
-      )}
     </div>
   );
 }
