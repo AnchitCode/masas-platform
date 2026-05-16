@@ -1,32 +1,28 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Profile from './pages/dashboard/Profile';
 import Inventory from './pages/dashboard/Inventory';
+import Search from './pages/Search';
+import PublicPharmacy from './pages/PublicPharmacy';
 import ProtectedRoute from './components/common/ProtectedRoute';
-import { useAuth } from './context/AuthContext';
-
-function Home() {
-  const { isAuthenticated } = useAuth();
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  return <Navigate to="/login" replace />;
-}
 
 function App() {
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="app-shell">
       <Navbar />
       <div className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          
+          <Route path="/search" element={<Search />} />
+          <Route path="/pharmacy/:id" element={<PublicPharmacy />} />
+
           <Route 
             path="/dashboard" 
             element={
