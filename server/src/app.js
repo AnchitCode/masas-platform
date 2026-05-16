@@ -67,6 +67,10 @@ app.use('/api/v1/catalog', catalogRoutes);
 const inventoryRoutes = require('./modules/inventory/inventory.routes');
 app.use('/api/v1/inventory', inventoryRoutes);
 
+// Public search (medicine availability near a location)
+const searchRoutes = require('./modules/search/search.routes');
+app.use('/api/v1/search', searchRoutes);
+
 // TODO: Phase 5 — Admin routes
 
 // --------------- Error Handling ---------------
