@@ -1,59 +1,88 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect } from 'react';
-import { Package, Plus, Search, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Package, Plus, Search, Edit2, Trash2 } from 'lucide-react';
 import inventoryService from '../../services/inventoryService';
 import pharmacyService from '../../services/pharmacyService';
 import MedicineModal from '../../components/inventory/MedicineModal';
+import PageHeader from '../../components/ui/PageHeader';
+import EmptyState from '../../components/ui/EmptyState';
+import AlertBanner from '../../components/ui/AlertBanner';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { Button } from '../../components/ui/Button';
+import { Card, CardContent } from '../../components/ui/Card';
+import { Input } from '../../components/ui/forms';
+
+const LOW_STOCK = 10;
+const EXPIRY_WARN_DAYS = 90;
+
+function daysUntilExpiry(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((d - start) / 86400000);
+}
+
+function stockHealthVariant(item) {
+  const qty = typeof item.quantity === 'number' ? item.quantity : 0;
+  if (!item.isAvailable || qty <= 0) return { variant: 'critical', label: 'Unavailable' };
+  if (qty <= LOW_STOCK) return { variant: 'warning', label: 'Low stock' };
+  return { variant: 'success', label: 'Healthy' };
+}
+
+function expiryBadge(days) {
+  if (days === null) return { label: '—', variant: 'neutral', title: 'No expiry on record' };
+  if (days < 0) return { label: 'Expired', variant: 'danger', title: 'Past expiry — remove from sale' };
+  if (days <= 30) return { label: `${days}d`, variant: 'danger', title: 'Expiry within 30 days' };
+  if (days <= EXPIRY_WARN_DAYS) return { label: `${days}d`, variant: 'warning', title: 'Expiry within 90 days' };
+  return { label: `${days}d`, variant: 'success', title: 'Expiry horizon healthy' };
+}
 
 export default function Inventory() {
   const [inventory, setInventory] = useState([]);
   const [pharmacy, setPharmacy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
-  // Modal states
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
-  // Search state for local filtering
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // First get pharmacy status
       const profileRes = await pharmacyService.getOwnProfile();
-      // API envelope: { success, message, data: { pharmacy } }
       const p = profileRes?.data?.pharmacy ?? null;
       setPharmacy(p);
 
-      // If verified, fetch inventory
       if (p?.status === 'VERIFIED') {
         const invRes = await inventoryService.getInventory();
-        // Same envelope; payload is { inventory: [...] }
         setInventory(invRes?.data?.inventory ?? []);
       }
     } catch (err) {
       if (err.response?.status === 404) {
-        setPharmacy(null); // No profile yet
+        setPharmacy(null);
       } else {
         setError('Failed to load inventory data');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this medicine?')) return;
     try {
       await inventoryService.deleteMedicine(id);
-      fetchData(); // refresh list
+      fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete medicine');
     }
@@ -71,28 +100,33 @@ export default function Inventory() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="spinner"></div>
+      <div style={{ display: 'flex', minHeight: '320px', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner text="Loading inventory…" />
       </div>
     );
   }
 
-  // Guard: No profile or not verified
   if (!pharmacy || pharmacy.status !== 'VERIFIED') {
     return (
-      <div className="animate-fade-in max-w-5xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-text tracking-tight">Inventory Management</h1>
-        </div>
-        <div className="card p-12 text-center border-dashed border-2 border-border/60 bg-surface-hover/30">
-          <Package className="w-16 h-16 text-text-muted mx-auto mb-4 opacity-50" />
-          <h2 className="text-xl font-semibold text-text mb-2">Inventory Locked</h2>
-          <p className="text-text-secondary max-w-md mx-auto text-sm leading-relaxed">
-            {!pharmacy 
-              ? 'You must complete your pharmacy profile before managing inventory.'
-              : `Your pharmacy is currently ${pharmacy.status}. You can only manage inventory once verified.`}
-          </p>
-        </div>
+      <div style={{ paddingBottom: '32px' }}>
+        <PageHeader
+          title="Inventory"
+          description="List medicines, pricing, and stock so patients can find you in search."
+        />
+        <EmptyState
+          icon={Package}
+          title="Inventory locked"
+          description={
+            !pharmacy
+              ? 'Complete your pharmacy profile first. After verification, you can publish stock to MASAS search.'
+              : `Your pharmacy is ${pharmacy.status}. Inventory opens once your account is verified.`
+          }
+          action={
+            <Button onClick={() => (window.location.href = '/dashboard/profile')} size="sm">
+              Go to profile
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -105,124 +139,165 @@ export default function Inventory() {
   });
 
   return (
-    <div className="animate-fade-in max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '32px' }}>
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1 className="text-3xl font-bold text-text tracking-tight">Inventory Management</h1>
-          <p className="text-text-secondary mt-1.5 text-sm">
-            Manage your medicine catalog, stock levels, and pricing.
-          </p>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text)', marginBottom: '8px' }}>Inventory</h1>
+          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>Mission-critical stock operations — scan-friendly layout, expiry posture, and floor alerts.</p>
         </div>
-        <button onClick={handleOpenAdd} className="btn btn-primary shadow-sm">
-          <Plus className="w-4 h-4 mr-1" />
-          Add Medicine
-        </button>
+        
+        <Button onClick={handleOpenAdd} leftIcon={Plus} variant="primary">
+          Add medicine
+        </Button>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 mb-6 rounded-lg bg-red-50 text-danger text-sm border border-red-200">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
+        <AlertBanner variant="error" title="Could not load data">
+          {error}
+        </AlertBanner>
       )}
 
-      {/* Controls */}
-      <div className="card mb-6 p-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input
-            type="text"
-            className="input pl-9 bg-surface"
-            placeholder="Search your inventory..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
+      <Card>
+        <CardContent style={{ padding: '16px' }}>
+          <div style={{ position: 'relative', maxWidth: '400px' }}>
+            <label htmlFor="inventory-search" style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>
+              Search inventory
+            </label>
+            <Search
+              style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--muted)', pointerEvents: 'none' }}
+              aria-hidden
+            />
+            <Input
+              id="inventory-search"
+              type="search"
+              style={{ paddingLeft: '36px' }}
+              placeholder="Search by medicine or generic name…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Data Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-surface-hover/50 text-text-muted uppercase text-[11px] font-bold tracking-wider border-b border-border">
+      <Card style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="masas-table-shell" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <table className="masas-table">
+            <thead className="masas-thead">
               <tr>
-                <th className="px-6 py-4">Medicine</th>
-                <th className="px-6 py-4">Price (₹)</th>
-                <th className="px-6 py-4">Stock</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Expiry</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th scope="col" className="masas-th">Medicine</th>
+                <th scope="col" className="masas-th" style={{ display: 'none' }}>Generic</th>
+                <th scope="col" className="masas-th">Price (₹)</th>
+                <th scope="col" className="masas-th">Stock</th>
+                <th scope="col" className="masas-th">Shelf health</th>
+                <th scope="col" className="masas-th">Availability</th>
+                <th scope="col" className="masas-th">Expiry</th>
+                <th scope="col" className="masas-th" style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               {filteredInventory.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-text-muted">
-                    No medicines found in your inventory.
+                  <td colSpan={8} className="masas-td" style={{ textAlign: 'center', padding: '56px 0', color: 'var(--muted)' }}>
+                    {inventory.length === 0 ? (
+                      <EmptyState
+                        icon={Package}
+                        title="No medicines added yet"
+                        description="Add a medicine to begin publishing your stock."
+                      />
+                    ) : 'No medicines match your search.'}
                   </td>
                 </tr>
               ) : (
-                filteredInventory.map((item) => (
-                  <tr key={item.id} className="hover:bg-surface-hover/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-semibold text-text capitalize">{item.medicine?.name ?? '—'}</p>
-                      <p className="text-xs text-text-muted capitalize">{item.medicine?.genericName || 'N/A'}</p>
-                    </td>
-                    <td className="px-6 py-4 font-medium">
-                      ₹{typeof item.price === 'number' ? item.price.toFixed(2) : '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`font-semibold ${item.quantity <= 10 ? 'text-amber-600' : 'text-text'}`}>
-                        {item.quantity}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {item.isAvailable && item.quantity > 0 ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                          In Stock
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-800">
-                          Out of Stock
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">
-                      {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenEdit(item)}
-                          className="p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
-                          title="Edit"
+                filteredInventory.map((item) => {
+                  const days = daysUntilExpiry(item.expiryDate);
+                  const exp = expiryBadge(days);
+                  const shelf = stockHealthVariant(item);
+                  const inStock = item.isAvailable && (item.quantity ?? 0) > 0;
+
+                  return (
+                    <tr key={item.id} className="masas-tr">
+                      <td className="masas-td">
+                        <p style={{ fontWeight: '600', textTransform: 'capitalize', color: 'var(--text)' }}>{item.medicine?.name ?? '—'}</p>
+                        <p style={{ marginTop: '2px', fontSize: '11px', textTransform: 'capitalize', color: 'var(--muted)' }}>
+                          {item.medicine?.genericName || '—'}
+                        </p>
+                      </td>
+                      <td className="masas-td" style={{ display: 'none' }}>
+                        {item.medicine?.genericName || '—'}
+                      </td>
+                      <td className="masas-td" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        ₹{typeof item.price === 'number' ? item.price.toFixed(2) : '—'}
+                      </td>
+                      <td className="masas-td" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <span
+                          style={{
+                            fontWeight: '600',
+                            color: (item.quantity ?? 0) > 0 && (item.quantity ?? 0) <= LOW_STOCK ? '#d97706' : 'var(--text)'
+                          }}
                         >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {item.quantity ?? 0}
+                        </span>
+                      </td>
+                      <td className="masas-td">
+                        <StatusBadge variant={shelf.variant} withDot>
+                          {shelf.label}
+                        </StatusBadge>
+                      </td>
+                      <td className="masas-td">
+                        {inStock ? (
+                          <StatusBadge variant="success">In stock</StatusBadge>
+                        ) : (
+                          <StatusBadge variant="danger">Out of stock</StatusBadge>
+                        )}
+                      </td>
+                      <td className="masas-td">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '11px', fontVariantNumeric: 'tabular-nums', color: 'var(--muted)' }}>
+                            {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '—'}
+                          </span>
+                          {item.expiryDate && (
+                            <StatusBadge variant={exp.variant}>
+                              {exp.label}
+                            </StatusBadge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="masas-td" style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(item)}
+                            title="Edit medicine"
+                            style={{ padding: '8px', borderRadius: '8px', color: 'var(--slate-500)', transition: 'all var(--duration) var(--ease)' }}
+                            onMouseOver={(e) => { e.currentTarget.style.color = 'var(--green-600)'; e.currentTarget.style.background = 'var(--green-50)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.color = 'var(--slate-500)'; e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <Edit2 style={{ width: '16px', height: '16px' }} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(item.id)}
+                            title="Delete medicine"
+                            style={{ padding: '8px', borderRadius: '8px', color: 'var(--slate-500)', transition: 'all var(--duration) var(--ease)' }}
+                            onMouseOver={(e) => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#fef2f2'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.color = 'var(--slate-500)'; e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <Trash2 style={{ width: '16px', height: '16px' }} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
-      <MedicineModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchData}
-        initialData={editingItem}
-      />
+      <MedicineModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchData} initialData={editingItem} />
     </div>
   );
 }
