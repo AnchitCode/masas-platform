@@ -2,31 +2,47 @@ import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
 import Sidebar from '../../components/layout/Sidebar';
 import { Menu } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
-/**
- * DashboardLayout — wraps all /dashboard/* pages with sidebar navigation.
- */
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  
+  const sidebarVariant = user?.role === 'ADMIN' ? 'admin' : 'pharmacy';
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-bg">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div className="dashboard-shell">
+      <Sidebar 
+        open={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+        variant={sidebarVariant}
+      />
 
-      <main className="flex-1 overflow-auto flex flex-col">
-        {/* Mobile menu toggle */}
-        <div className="lg:hidden p-4 border-b border-border bg-surface flex items-center">
+      <main className="dashboard-main flex-col">
+        {/* Mobile Header */}
+        <div 
+          className="md:hidden" 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            paddingBottom: 20,
+            marginBottom: 20,
+            borderBottom: '0.5px solid var(--border)'
+          }}
+        >
           <button
+            type="button"
             className="btn btn-ghost btn-sm"
+            style={{ padding: 6, marginRight: 12 }}
             onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
           >
-            <Menu className="w-5 h-5 mr-2" />
-            <span className="text-sm font-medium">Menu</span>
+            <Menu style={{ width: 20, height: 20 }} />
           </button>
+          <span style={{ fontSize: 15, fontWeight: 600 }}>Dashboard</span>
         </div>
 
-        {/* Dashboard Content Container */}
-        <div className="flex-1 w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div style={{ flex: 1 }}>
           <Outlet />
         </div>
       </main>
