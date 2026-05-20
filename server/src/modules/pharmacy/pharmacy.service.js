@@ -83,9 +83,16 @@ const pharmacyService = {
       throw ApiError.notFound('Pharmacy profile not found');
     }
 
+    // Re-verification: if a rejected pharmacy updates their profile,
+    // automatically transition status back to PENDING for admin review.
+    const updateData = { ...data };
+    if (pharmacy.status === 'REJECTED') {
+      updateData.status = 'PENDING';
+    }
+
     const updated = await prisma.pharmacy.update({
       where: { id: pharmacy.id },
-      data,
+      data: updateData,
     });
 
     return updated;

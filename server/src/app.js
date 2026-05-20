@@ -71,7 +71,9 @@ app.use('/api/v1/inventory', inventoryRoutes);
 const searchRoutes = require('./modules/search/search.routes');
 app.use('/api/v1/search', searchRoutes);
 
-// TODO: Phase 5 — Admin routes
+// Admin routes (Phase 5)
+const adminRoutes = require('./modules/admin/admin.routes');
+app.use('/api/v1/admin', adminRoutes);
 
 // --------------- Error Handling ---------------
 

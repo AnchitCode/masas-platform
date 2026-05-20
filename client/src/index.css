@@ -961,3 +961,73 @@ input, textarea, select { font: inherit; }
     display: none;
   }
 }
+
+/* ==================== ADMIN ==================== */
+
+/* Status filter tabs */
+.filter-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--slate-100);
+  border-radius: var(--radius-input);
+  width: fit-content;
+}
+.filter-tab {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  border-radius: var(--radius-btn);
+  transition: all var(--duration) var(--ease);
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: var(--font-sans);
+}
+.filter-tab:hover { color: var(--text); }
+.filter-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+}
+.pagination-info {
+  font-size: 13px;
+  color: var(--muted);
+}
+.pagination-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* Admin column span */
+@media (min-width: 1024px) {
+  .dashboard-col-7 { grid-column: span 7 / span 7; }
+  .dashboard-col-6 { grid-column: span 6 / span 6; }
+}
+
+/* Action buttons in table rows */
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Access denied state */
+.access-denied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  padding: 48px 24px;
+}

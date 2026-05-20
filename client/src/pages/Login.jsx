@@ -24,8 +24,24 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(formData);
-      navigate(from, { replace: true });
+      const response = await login(formData);
+      // Determine default redirect path based on user role
+      // response structure from authService is typically { data: { user: { role: '...' }, ... } }
+      // Due to Axios, it might be nested under another data: response.data.data.user
+      const userRole = response?.data?.data?.user?.role || response?.data?.user?.role;
+      
+      let redirectPath = '/dashboard';
+      if (userRole === 'ADMIN') {
+        redirectPath = '/admin';
+      }
+
+      // If there's a specific 'from' state, use it unless it's the default '/dashboard'
+      // and the user is an admin.
+      const finalDest = location.state?.from?.pathname
+        ? (location.state.from.pathname === '/dashboard' && userRole === 'ADMIN' ? '/admin' : location.state.from.pathname)
+        : redirectPath;
+
+      navigate(finalDest, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.message || 'Login failed. Please check your credentials.'

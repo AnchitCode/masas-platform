@@ -52,10 +52,16 @@ export default function Navbar() {
         </Link>
         {isAuthenticated && (
           <Link 
-            to="/dashboard" 
-            className={cn('navbar-link', location.pathname.startsWith('/dashboard') && 'active')}
+            to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'} 
+            className={cn(
+              'navbar-link', 
+              (user?.role === 'ADMIN' 
+                ? location.pathname.startsWith('/admin') 
+                : location.pathname.startsWith('/dashboard')
+              ) && 'active'
+            )}
           >
-            Dashboard
+            {user?.role === 'ADMIN' ? 'Admin panel' : 'Dashboard'}
           </Link>
         )}
       </div>

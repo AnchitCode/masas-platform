@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, BarChart3, User, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, BarChart3, User, Settings, LogOut, Store } from 'lucide-react';
 import { APP_NAME } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
@@ -12,7 +12,7 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }) {
     await logout();
   };
 
-  const navGroups = [
+  const pharmacyNavGroups = [
     {
       label: 'Main',
       items: [
@@ -29,6 +29,24 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }) {
       ],
     },
   ];
+
+  const adminNavGroups = [
+    {
+      label: 'Platform',
+      items: [
+        { to: '/admin', icon: LayoutDashboard, label: 'Overview', end: true },
+        { to: '/admin/pharmacies', icon: Store, label: 'Pharmacies' },
+      ],
+    },
+    {
+      label: 'System',
+      items: [
+        { to: '/admin/settings', icon: Settings, label: 'Settings' },
+      ],
+    },
+  ];
+
+  const navGroups = variant === 'admin' ? adminNavGroups : pharmacyNavGroups;
 
   return (
     <>

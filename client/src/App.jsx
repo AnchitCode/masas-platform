@@ -10,6 +10,9 @@ import Inventory from './pages/dashboard/Inventory';
 import Search from './pages/Search';
 import PublicPharmacy from './pages/PublicPharmacy';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminPharmacies from './pages/admin/AdminPharmacies';
 
 function App() {
   return (
@@ -36,6 +39,19 @@ function App() {
             <Route path="inventory" element={<Inventory />} />
           </Route>
 
+          {/* Admin routes — ADMIN role required */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute roles={['ADMIN']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="pharmacies" element={<AdminPharmacies />} />
+          </Route>
+
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -45,3 +61,4 @@ function App() {
 }
 
 export default App;
+
