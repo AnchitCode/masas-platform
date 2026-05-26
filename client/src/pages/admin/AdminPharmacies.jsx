@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import adminService from '../../services/adminService';
 import PageHeader from '../../components/ui/PageHeader';
@@ -54,19 +54,27 @@ export default function AdminPharmacies() {
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
 
-  const fetchPharmacies = useCallback(async () => {
+  // Ignore stale list responses when a newer fetch starts (avoids race after verify/reject)
+  const fetchRequestId = useRef(0);
+
+  const fetchPharmacies = useCallback(async (showLoading = true) => {
+    const requestId = ++fetchRequestId.current;
     setError('');
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const params = { page, limit: ITEMS_PER_PAGE };
       if (statusFilter) params.status = statusFilter;
       const res = await adminService.getPharmacies(params);
+      if (requestId !== fetchRequestId.current) return;
       setPharmacies(res?.data?.data?.pharmacies ?? []);
       setTotal(res?.data?.data?.total ?? 0);
     } catch (err) {
+      if (requestId !== fetchRequestId.current) return;
       setError(err.response?.data?.message || 'Failed to load pharmacies');
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestId.current && showLoading) {
+        setLoading(false);
+      }
     }
   }, [page, statusFilter]);
 
@@ -100,40 +108,62 @@ export default function AdminPharmacies() {
     if (!modalPharmacy || !modalAction) return;
     setActionLoading(true);
     setActionError('');
+
+    const pharmacyId = modalPharmacy.id;
+    const pharmacyName = modalPharmacy.name;
+
+    // Cancel any in-flight list fetch so it cannot overwrite the update
+    fetchRequestId.current += 1;
+
     try {
       const data = { status: modalAction };
       if (modalAction === 'REJECTED' && rejectionReason.trim()) {
         data.rejectionReason = rejectionReason.trim();
       }
-      await adminService.updatePharmacyStatus(modalPharmacy.id, data);
 
-      const successMsg =
-        modalAction === 'VERIFIED'
-          ? `${modalPharmacy.name} has been verified successfully.`
-          : `${modalPharmacy.name} has been rejected.`;
-      setActionSuccess(successMsg);
+      const res = await adminService.updatePharmacyStatus(pharmacyId, data);
 
-      // Immediately update local state so the table reflects the change
-      setPharmacies((prev) =>
-        prev.map((p) =>
-          p.id === modalPharmacy.id ? { ...p, status: modalAction } : p
-        )
+      if (!res?.data?.success) {
+        throw new Error(res?.data?.message || 'Failed to update pharmacy status');
+      }
+
+      const updatedPharmacy = res?.data?.data?.pharmacy;
+      if (!updatedPharmacy?.status) {
+        throw new Error('Server did not return an updated pharmacy status');
+      }
+      const newStatus = updatedPharmacy.status;
+
+      setActionLoading(false);
+      setModalOpen(false);
+      setModalPharmacy(null);
+      setModalAction(null);
+
+      setActionSuccess(
+        newStatus === 'VERIFIED'
+          ? `${pharmacyName} has been verified successfully.`
+          : `${pharmacyName} has been rejected.`
       );
 
-      // Close modal after a brief pause, then do a background refetch
-      setTimeout(() => {
-        setModalOpen(false);
-        // Background refetch to sync counts / ordering (don't show loading)
-        adminService.getPharmacies({ page, limit: ITEMS_PER_PAGE, ...(statusFilter ? { status: statusFilter } : {}) })
-          .then((res) => {
-            setPharmacies(res?.data?.data?.pharmacies ?? []);
-            setTotal(res?.data?.data?.total ?? 0);
-          })
-          .catch(() => {}); // silent — local state is already correct
-      }, 1000);
+      // When viewing a status tab, remove rows that no longer match the filter
+      if (statusFilter && statusFilter !== newStatus) {
+        setPharmacies((prev) => prev.filter((p) => p.id !== pharmacyId));
+        setTotal((prev) => Math.max(0, prev - 1));
+      } else {
+        setPharmacies((prev) =>
+          prev.map((p) =>
+            p.id === pharmacyId
+              ? { ...p, ...updatedPharmacy, status: newStatus }
+              : p
+          )
+        );
+      }
+
+      await fetchPharmacies(false);
+
+      setTimeout(() => setActionSuccess(''), 4000);
     } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to update pharmacy status');
-    } finally {
+      const msg = err.response?.data?.message || err.message || 'Failed to update pharmacy status';
+      setActionError(msg);
       setActionLoading(false);
     }
   };
@@ -415,6 +445,7 @@ export default function AdminPharmacies() {
               Cancel
             </Button>
             <Button
+              type="button"
               variant={modalAction === 'VERIFIED' ? 'primary' : 'danger'}
               isLoading={actionLoading}
               onClick={handleStatusUpdate}

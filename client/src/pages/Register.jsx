@@ -6,6 +6,7 @@ import { FormField, Input } from '../components/ui/forms';
 import { Button } from '../components/ui/Button';
 import AlertBanner from '../components/ui/AlertBanner';
 import { APP_NAME } from '../utils/constants';
+import logoUrl from '../assets/logo.jpg';
 
 export default function Register() {
   const { register } = useAuth();
@@ -59,9 +60,8 @@ export default function Register() {
     <div className="flex flex-col items-center justify-center page-bg" style={{ minHeight: 'calc(100vh - var(--navbar-height))', padding: '48px 16px' }}>
       <div className="animate-fade-in" style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
-            <div className="navbar-dot" style={{ width: 12, height: 12 }} />
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{APP_NAME}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <img src={logoUrl} alt="MASAS Logo" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
           </div>
           <h1 className="masas-typography-page-title" style={{ fontSize: 24 }}>Create your account</h1>
         </div>
@@ -134,7 +134,7 @@ export default function Register() {
             </Button>
           </form>
         </div>
-          
+
         <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted)', marginTop: 24 }}>
           Already have an account?{' '}
           <Link to="/login" style={{ color: 'var(--green-600)', fontWeight: 500 }}>

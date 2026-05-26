@@ -3,6 +3,7 @@ import { LayoutDashboard, Package, BarChart3, User, Settings, LogOut, Store } fr
 import { APP_NAME } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
+import MasasLogo from '../ui/MasasLogo';
 
 export default function Sidebar({ open, onClose, variant = 'pharmacy' }) {
   const { logout } = useAuth();
@@ -65,7 +66,7 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }) {
         )}
       >
         <div className="sidebar-logo">
-          <div className="navbar-dot" style={{ backgroundColor: variant === 'pharmacy' ? '#4ade80' : '#22c55e' }} />
+          <MasasLogo size={22} variant="white" />
           {APP_NAME}
         </div>
 

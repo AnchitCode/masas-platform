@@ -5,6 +5,7 @@ import { APP_NAME } from '../../utils/constants';
 import { Menu, X, LogOut } from 'lucide-react';
 import { Button } from '../ui/Button';
 import StatusBadge from '../ui/StatusBadge';
+import logoUrl from '../../assets/logo.jpg';
 import { cn } from '../../lib/utils';
 
 export default function Navbar() {
@@ -26,37 +27,48 @@ export default function Navbar() {
 
   return (
     <header className="navbar">
-      <Link to="/" className="navbar-brand">
-        <div className="navbar-dot" />
-        {APP_NAME}
+      <Link to="/" className="navbar-brand" style={{ gap: 0 }}>
+        <img src={logoUrl} alt="MASAS Logo" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
       </Link>
 
       <div className={cn('navbar-links', mobileOpen && 'open')}>
-        <Link 
-          to="/search" 
+        <Link
+          to="/search"
           className={cn('navbar-link', location.pathname === '/search' && 'active')}
         >
           Search medicines
         </Link>
-        <Link 
-          to="/register" 
-          className={cn('navbar-link', location.pathname === '/register' && 'active')}
+        <a
+          href="/#admin-section"
+          className="navbar-link"
+          onClick={(e) => {
+            if (location.pathname === '/') {
+              e.preventDefault();
+              document.getElementById('admin-section')?.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
         >
-          For pharmacies
-        </Link>
-        <Link 
-          to="/about" 
-          className={cn('navbar-link', location.pathname === '/about' && 'active')}
+          For admins
+        </a>
+        <a
+          href="/#about-section"
+          className="navbar-link"
+          onClick={(e) => {
+            if (location.pathname === '/') {
+              e.preventDefault();
+              document.getElementById('about-section')?.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
         >
           About
-        </Link>
+        </a>
         {isAuthenticated && (
-          <Link 
-            to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'} 
+          <Link
+            to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'}
             className={cn(
-              'navbar-link', 
-              (user?.role === 'ADMIN' 
-                ? location.pathname.startsWith('/admin') 
+              'navbar-link',
+              (user?.role === 'ADMIN'
+                ? location.pathname.startsWith('/admin')
                 : location.pathname.startsWith('/dashboard')
               ) && 'active'
             )}
@@ -93,7 +105,7 @@ export default function Navbar() {
         ) : (
           <div className="navbar-desktop-actions">
             <Link to="/login" className="navbar-link" style={{ fontWeight: 500, padding: '0 12px' }}>
-              Log in
+              Sign in
             </Link>
             <Button size="sm" onClick={() => navigate('/register')}>
               Register pharmacy

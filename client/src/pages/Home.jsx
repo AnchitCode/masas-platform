@@ -1,8 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Search, CheckCircle2, Navigation, ShieldCheck } from 'lucide-react';
+import {
+  Search,
+  MapPin,
+  Navigation,
+  CheckCircle2,
+  ShieldCheck,
+  Clock,
+  Eye,
+  AlertTriangle,
+  ShieldCheck as Shield,
+  BarChart3,
+  Users,
+  ClipboardCheck,
+  ArrowRight,
+} from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import MasasLogo from '../components/ui/MasasLogo';
 
+/* ─────────────────── Scroll reveal hook ─────────────────── */
+function useScrollReveal() {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add('is-visible');
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return ref;
+}
+
+function RevealSection({ children, className = '', delay = '' }) {
+  const ref = useScrollReveal();
+  return (
+    <div ref={ref} className={`animate-on-scroll ${delay} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/* ─────────────────── Main component ─────────────────── */
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
@@ -16,129 +66,274 @@ export default function Home() {
 
   return (
     <div className="flex flex-col">
-      {/* Hero Section */}
-      <section style={{ backgroundColor: 'var(--green-50)', padding: '80px 24px', textAlign: 'center' }}>
+
+      {/* ═══════════════ HERO ═══════════════ */}
+      <section className="hero-section">
         <div className="mx-auto" style={{ maxWidth: 800 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: 'white', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--green-700)', boxShadow: 'var(--shadow-sm)', marginBottom: 24 }}>
-            <MapPin style={{ width: 14, height: 14 }} />
-            Live medicine availability near you
+          <div className="hero-badge">
+            <span className="hero-badge-dot" />
+            Real-time medicine availability
           </div>
-          
-          <h1 style={{ fontSize: 48, fontWeight: 800, color: 'var(--text)', lineHeight: 1.1, marginBottom: 24, letterSpacing: '-0.02em' }}>
-            Find medicines at <span style={{ color: 'var(--green-600)' }}>nearby pharmacies</span> instantly
+
+          <h1 className="hero-title">
+            Find any medicine near you —{' '}
+            <span className="hero-title-accent">in seconds</span>
           </h1>
-          
-          <p style={{ fontSize: 18, color: 'var(--slate-600)', maxWidth: 540, margin: '0 auto 40px', lineHeight: 1.5 }}>
-            Don't waste time visiting multiple stores. Search for your prescription and see exactly who has it in stock right now.
+
+          <p className="hero-sub">
+            Stop visiting pharmacy after pharmacy. Search once and see exactly who has your
+            prescription in stock, with real-time availability from verified pharmacies nearby.
           </p>
 
-          <form onSubmit={handleSearch} style={{ display: 'flex', maxWidth: 500, margin: '0 auto', gap: 8 }}>
+          <form onSubmit={handleSearch} className="hero-search">
             <div style={{ position: 'relative', flex: 1 }}>
-              <div style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                <Search style={{ width: 20, height: 20, color: 'var(--muted)' }} />
-              </div>
+              <Search className="hero-search-icon" />
               <input
                 type="text"
-                placeholder="Enter medicine name..."
+                className="hero-search-input w-full"
+                placeholder="Search any medicine name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: 56,
-                  padding: '0 16px 0 48px',
-                  fontSize: 16,
-                  border: '2px solid var(--green-200)',
-                  borderRadius: 12,
-                  outline: 'none',
-                  backgroundColor: 'white',
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={(e) => e.target.style.borderColor = 'var(--green-500)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--green-200)'}
               />
             </div>
-            <Button type="submit" size="lg" style={{ height: 56, padding: '0 32px', fontSize: 16, borderRadius: 12 }}>
+            <Button
+              type="submit"
+              size="lg"
+              style={{ height: 56, padding: '0 32px', fontSize: 16, borderRadius: 14 }}
+            >
               Search
             </Button>
           </form>
-          
-          <p style={{ fontSize: 13, color: 'var(--slate-500)', marginTop: 16 }}>
-            Searching across verified pharmacies in your city
+
+          <p className="hero-hint">
+            Search across verified pharmacies in your city
           </p>
         </div>
       </section>
 
-      {/* Stats Row */}
-      <section style={{ backgroundColor: 'white', padding: '40px 24px', borderBottom: '1px solid var(--border)' }}>
-        <div className="mx-auto" style={{ maxWidth: 1000, display: 'flex', justifyContent: 'center', gap: 64, flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)' }}>1,200+</div>
-            <div style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500 }}>Verified pharmacies</div>
+      {/* ═══════════════ STATS BAR ═══════════════ */}
+      <section className="stats-bar">
+        <div className="stats-grid">
+          <div className="stat-item">
+            <div className="stat-value">1,200+</div>
+            <div className="stat-label">Verified pharmacies</div>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)' }}>50,000+</div>
-            <div style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500 }}>Medicines tracked</div>
+          <div className="stat-item">
+            <div className="stat-value">50,000+</div>
+            <div className="stat-label">Medicines tracked</div>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)' }}>&lt; 2s</div>
-            <div style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500 }}>Search time</div>
+          <div className="stat-item">
+            <div className="stat-value">&lt; 2s</div>
+            <div className="stat-label">Avg. search time</div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="page-bg" style={{ padding: '80px 24px' }}>
-        <div className="mx-auto" style={{ maxWidth: 1000 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 32 }}>
-            <div className="card" style={{ padding: 32 }}>
-              <div style={{ width: 48, height: 48, backgroundColor: 'var(--green-100)', color: 'var(--green-600)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+      {/* ═══════════════ WHY MASAS EXISTS ═══════════════ */}
+      <section className="story-section" id="about-section">
+        <div className="story-inner">
+          <RevealSection>
+            <h2 className="story-heading">
+              Every minute matters when you need medicine
+            </h2>
+            <p className="story-sub">
+              Across India, patients and caregivers waste hours searching for essential medicines.
+              Pharmacies operate in silos with no shared visibility. MASAS was built to fix this.
+            </p>
+          </RevealSection>
+
+          <div className="story-grid">
+            <RevealSection delay="animate-delay-1">
+              <div className="story-card">
+                <div className="story-card-icon">
+                  <Clock style={{ width: 20, height: 20 }} />
+                </div>
+                <h3 className="story-card-title">Hours wasted searching</h3>
+                <p className="story-card-desc">
+                  Patients visit 3–5 pharmacies on average before finding their prescription.
+                  Every extra trip costs time, money, and energy — especially during emergencies.
+                </p>
+              </div>
+            </RevealSection>
+
+            <RevealSection delay="animate-delay-2">
+              <div className="story-card">
+                <div className="story-card-icon">
+                  <Eye style={{ width: 20, height: 20 }} />
+                </div>
+                <h3 className="story-card-title">No inventory visibility</h3>
+                <p className="story-card-desc">
+                  Pharmacies manage stock independently. There's no connected system to check
+                  availability across stores — leaving patients guessing.
+                </p>
+              </div>
+            </RevealSection>
+
+            <RevealSection delay="animate-delay-3">
+              <div className="story-card">
+                <div className="story-card-icon">
+                  <AlertTriangle style={{ width: 20, height: 20 }} />
+                </div>
+                <h3 className="story-card-title">Emergency medicine gaps</h3>
+                <p className="story-card-desc">
+                  Critical and rare medicines are hardest to find. Shortage situations create
+                  real health risks when patients can't locate what they need fast.
+                </p>
+              </div>
+            </RevealSection>
+          </div>
+
+          <RevealSection>
+            <p className="story-resolution">
+              <strong>MASAS bridges this gap</strong> by connecting pharmacy inventory
+              systems into a single real-time search layer. Patients find medicines instantly.
+              Pharmacies gain visibility. The healthcare supply chain becomes smarter.
+            </p>
+          </RevealSection>
+        </div>
+      </section>
+
+      {/* ═══════════════ FEATURES ═══════════════ */}
+      <section className="features-section">
+        <div className="features-grid">
+          <RevealSection delay="animate-delay-1">
+            <div className="feature-card">
+              <div className="feature-icon">
                 <Navigation style={{ width: 24, height: 24 }} />
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>Location-based search</h3>
-              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>Find the closest pharmacies to your current location that have exactly what you need in stock.</p>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>
+                Location-based search
+              </h3>
+              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
+                Find the closest pharmacies to your current location that have exactly what
+                you need in stock. Sorted by distance for maximum convenience.
+              </p>
             </div>
+          </RevealSection>
 
-            <div className="card" style={{ padding: 32 }}>
-              <div style={{ width: 48, height: 48, backgroundColor: 'var(--green-100)', color: 'var(--green-600)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+          <RevealSection delay="animate-delay-2">
+            <div className="feature-card">
+              <div className="feature-icon">
                 <CheckCircle2 style={{ width: 24, height: 24 }} />
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>Live stock status</h3>
-              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>Our system integrates directly with pharmacy inventory systems to provide real-time availability.</p>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>
+                Live stock status
+              </h3>
+              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
+                Real-time inventory integration means you see what's actually available right now —
+                not stale data from last week. Updated as pharmacies manage stock.
+              </p>
             </div>
+          </RevealSection>
 
-            <div className="card" style={{ padding: 32 }}>
-              <div style={{ width: 48, height: 48, backgroundColor: 'var(--green-100)', color: 'var(--green-600)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+          <RevealSection delay="animate-delay-3">
+            <div className="feature-card">
+              <div className="feature-icon">
                 <ShieldCheck style={{ width: 24, height: 24 }} />
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>Verified only</h3>
-              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>Every pharmacy on our platform is strictly vetted and verified to ensure your safety and security.</p>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>
+                Verified pharmacies only
+              </h3>
+              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
+                Every pharmacy on the platform goes through admin verification before appearing
+                in search results. Your safety is our baseline, not an afterthought.
+              </p>
             </div>
-          </div>
+          </RevealSection>
         </div>
       </section>
 
-      {/* How it works */}
-      <section style={{ backgroundColor: 'white', padding: '80px 24px' }}>
-        <div className="mx-auto" style={{ maxWidth: 800, textAlign: 'center' }}>
-          <h2 style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)', marginBottom: 48 }}>How it works</h2>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 24, left: 0, right: 0, height: 2, backgroundColor: 'var(--green-100)', zIndex: 0 }} />
-            
+      {/* ═══════════════ HOW IT WORKS ═══════════════ */}
+      <section className="how-section">
+        <div className="how-inner">
+          <RevealSection>
+            <h2 className="section-heading" style={{ marginBottom: 8 }}>
+              How it works
+            </h2>
+            <p style={{ fontSize: 15, color: 'var(--muted)' }}>
+              Three steps to find any medicine near you
+            </p>
+          </RevealSection>
+
+          <div className="how-steps">
+            <div className="how-line" />
+
             {[
-              { num: 1, title: 'Search', desc: 'Type your medicine name' },
-              { num: 2, title: 'Locate', desc: 'Find nearby pharmacies with stock' },
-              { num: 3, title: 'Pickup', desc: 'Get directions and pick it up' }
+              { num: 1, title: 'Search', desc: 'Type any medicine or prescription name' },
+              { num: 2, title: 'Locate', desc: 'See nearby pharmacies with verified stock' },
+              { num: 3, title: 'Pickup', desc: 'Get directions and pick up your medicine' },
             ].map((step) => (
-              <div key={step.num} style={{ position: 'relative', zIndex: 1, backgroundColor: 'white', padding: '0 16px' }}>
-                <div style={{ width: 48, height: 48, backgroundColor: 'var(--green-600)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, margin: '0 auto 16px' }}>
-                  {step.num}
-                </div>
-                <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{step.title}</h4>
-                <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{step.desc}</p>
+              <div key={step.num} className="how-step">
+                <div className="how-step-num">{step.num}</div>
+                <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
+                  {step.title}
+                </h4>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 6 }}>
+                  {step.desc}
+                </p>
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ FOR ADMINS ═══════════════ */}
+      <section className="admin-section" id="admin-section">
+        <div className="admin-inner">
+          <RevealSection>
+            <div className="admin-badge">
+              <Shield style={{ width: 13, height: 13 }} />
+              Platform Administration
+            </div>
+            <h2 className="section-heading" style={{ marginBottom: 12 }}>
+              For platform administrators
+            </h2>
+            <p style={{ fontSize: 15, color: 'var(--muted)', maxWidth: 480, margin: '0 auto', lineHeight: 1.6 }}>
+              MASAS includes a full admin dashboard for managing pharmacy registrations,
+              verifying credentials, and monitoring platform health.
+            </p>
+
+            <div className="admin-features">
+              <div className="admin-feature">
+                <ClipboardCheck className="admin-feature-icon" />
+                Pharmacy verification
+              </div>
+              <div className="admin-feature">
+                <BarChart3 className="admin-feature-icon" />
+                Platform analytics
+              </div>
+              <div className="admin-feature">
+                <Users className="admin-feature-icon" />
+                User management
+              </div>
+            </div>
+
+            <Button
+              variant="secondary"
+              rightIcon={ArrowRight}
+              onClick={() => navigate('/login')}
+              style={{ marginTop: 8 }}
+            >
+              Sign in as admin
+            </Button>
+          </RevealSection>
+        </div>
+      </section>
+
+      {/* ═══════════════ FOOTER CTA ═══════════════ */}
+      <section className="footer-cta">
+        <div className="footer-cta-inner">
+          <RevealSection>
+            <MasasLogo size={40} variant="white" style={{ margin: '0 auto 24px' }} />
+            <h2>Ready to list your pharmacy?</h2>
+            <p>
+              Join the MASAS network and make your medicines discoverable to thousands of
+              patients searching for prescriptions nearby.
+            </p>
+            <button className="btn" onClick={() => navigate('/register')}>
+              Register your pharmacy
+            </button>
+          </RevealSection>
         </div>
       </section>
     </div>

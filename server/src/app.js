@@ -16,6 +16,14 @@ const app = express();
 // Security headers
 app.use(helmet());
 
+// Disable caching for API responses
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // CORS
 app.use(cors(corsOptions));
 

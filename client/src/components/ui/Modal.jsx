@@ -78,23 +78,18 @@ export function Modal({
     return null;
   }
 
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) {
+      handleClose();
+    }
+  };
+
   return createPortal(
     <div
       className={cn('modal-backdrop', className)}
       role="presentation"
+      onClick={handleBackdropClick}
     >
-      <button
-        type="button"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'transparent',
-          border: 'none',
-          cursor: 'default',
-        }}
-        aria-label="Dismiss dialog"
-        onClick={handleClose}
-      />
       <div
         ref={panelRef}
         role="dialog"
@@ -103,6 +98,7 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         className={cn('modal-panel', panelClassName)}
         style={{ maxWidth: maxWidthMap[size] ?? maxWidthMap.md }}
+        onClick={(event) => event.stopPropagation()}
       >
         <header className="modal-header">
           <div style={{ minWidth: 0 }}>

@@ -48,7 +48,7 @@ export default function PharmacyCard({
             )}
           </div>
         )}
-        
+
         <div className="flex items-start gap-3 mb-4">
           <div className="p-2 bg-slate-50 border border-border rounded-lg shrink-0">
             <Store className="w-5 h-5 text-green-600" />

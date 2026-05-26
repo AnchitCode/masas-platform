@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MapPin, Search as SearchIcon, LocateFixed, ScanSearch, Filter } from 'lucide-react';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import searchService from '../services/searchService';
@@ -15,7 +16,10 @@ const DEFAULT_RADIUS_KM = 12;
 const PAGE_SIZE = 20;
 
 export default function Search() {
-  const [query, setQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const initialQuery = searchParams.get('q') || '';
+
+  const [query, setQuery] = useState(initialQuery);
   const debouncedQuery = useDebouncedValue(query, 400);
 
   const [coords, setCoords] = useState(null);
@@ -56,6 +60,14 @@ export default function Search() {
       },
       { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 }
     );
+  }, []);
+
+  // Auto-trigger geolocation when arriving with a ?q= param
+  useEffect(() => {
+    if (initialQuery && geoState === 'idle') {
+      requestLocation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -147,7 +159,7 @@ export default function Search() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <Button
               type="button"
@@ -161,7 +173,7 @@ export default function Search() {
             </Button>
           </div>
         </div>
-        
+
         {geoMessage && (
           <div className="max-w-5xl mx-auto mt-4">
             <AlertBanner variant={geoState === 'error' || geoState === 'denied' ? 'warning' : 'info'} title={null}>
@@ -177,7 +189,7 @@ export default function Search() {
           <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-border text-sm font-medium text-muted whitespace-nowrap hover:bg-slate-50 cursor-pointer transition-colors">Within 5km</span>
         </div>
       </div>
-      
+
       <div className="max-w-5xl mx-auto w-full px-4 py-8 sm:px-6 flex flex-col md:flex-row gap-8 items-start">
         <div className="flex-1 w-full min-w-0">
           <div className="space-y-6" aria-live="polite">
@@ -246,7 +258,7 @@ export default function Search() {
             ) : null}
           </div>
         </div>
-        
+
         <div className="hidden lg:block w-72 shrink-0 sticky top-[160px]">
           <Card className="border-border shadow-sm">
             <CardContent className="p-0">

@@ -6,6 +6,7 @@ import AlertBanner from '../components/ui/AlertBanner';
 import { FormField, Input } from '../components/ui/forms';
 import { Button } from '../components/ui/Button';
 import { APP_NAME } from '../utils/constants';
+import logoUrl from '../assets/logo.jpg';
 
 export default function Login() {
   const { login } = useAuth();
@@ -29,7 +30,7 @@ export default function Login() {
       // response structure from authService is typically { data: { user: { role: '...' }, ... } }
       // Due to Axios, it might be nested under another data: response.data.data.user
       const userRole = response?.data?.data?.user?.role || response?.data?.user?.role;
-      
+
       let redirectPath = '/dashboard';
       if (userRole === 'ADMIN') {
         redirectPath = '/admin';
@@ -55,9 +56,8 @@ export default function Login() {
     <div className="flex flex-col items-center justify-center page-bg" style={{ minHeight: 'calc(100vh - var(--navbar-height))', padding: '48px 16px' }}>
       <div className="animate-fade-in" style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
-            <div className="navbar-dot" style={{ width: 12, height: 12 }} />
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{APP_NAME}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <img src={logoUrl} alt="MASAS Logo" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
           </div>
           <h1 className="masas-typography-page-title" style={{ fontSize: 24 }}>Welcome back</h1>
         </div>
@@ -109,7 +109,7 @@ export default function Login() {
             </Button>
           </form>
         </div>
-          
+
         <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted)', marginTop: 24 }}>
           Don&apos;t have an account?{' '}
           <Link to="/register" style={{ color: 'var(--green-600)', fontWeight: 500 }}>
