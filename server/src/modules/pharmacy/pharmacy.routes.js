@@ -12,7 +12,28 @@ const router = Router();
 
 // ---- Authenticated routes (Pharmacy owners) ----
 
-// POST /api/v1/pharmacy/profile — Create pharmacy profile
+/**
+ * @swagger
+ * /pharmacy/profile:
+ *   post:
+ *     tags: [Pharmacy]
+ *     summary: Create pharmacy profile
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreatePharmacyRequest'
+ *     responses:
+ *       201:
+ *         description: Profile created (status defaults to PENDING)
+ *       400:
+ *         description: Validation error
+ *       409:
+ *         description: Profile or license already exists
+ */
 router.post(
   '/profile',
   auth,
@@ -21,7 +42,20 @@ router.post(
   pharmacyController.createProfile
 );
 
-// GET /api/v1/pharmacy/profile — Get own pharmacy profile
+/**
+ * @swagger
+ * /pharmacy/profile:
+ *   get:
+ *     tags: [Pharmacy]
+ *     summary: Get own pharmacy profile
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile retrieved
+ *       404:
+ *         description: Profile not found
+ */
 router.get(
   '/profile',
   auth,
@@ -29,7 +63,27 @@ router.get(
   pharmacyController.getOwnProfile
 );
 
-// PUT /api/v1/pharmacy/profile — Update own pharmacy profile
+/**
+ * @swagger
+ * /pharmacy/profile:
+ *   put:
+ *     tags: [Pharmacy]
+ *     summary: Update own pharmacy profile
+ *     description: If pharmacy is REJECTED, updating auto-transitions status to PENDING for re-review.
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreatePharmacyRequest'
+ *     responses:
+ *       200:
+ *         description: Profile updated
+ *       404:
+ *         description: Profile not found
+ */
 router.put(
   '/profile',
   auth,
@@ -40,7 +94,25 @@ router.put(
 
 // ---- Public routes ----
 
-// GET /api/v1/pharmacy/:id — Get pharmacy public details
+/**
+ * @swagger
+ * /pharmacy/{id}:
+ *   get:
+ *     tags: [Pharmacy]
+ *     summary: Get pharmacy public details
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Pharmacy details
+ *       404:
+ *         description: Pharmacy not found
+ */
 router.get('/:id', pharmacyController.getPublicProfile);
 
 module.exports = router;

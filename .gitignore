@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.local
 .env.production
+.env.test
+server/.env.test
 
 # Build output
 dist/
@@ -14,6 +16,10 @@ build/
 logs/
 *.log
 npm-debug.log*
+
+# Test coverage
+coverage/
+server/coverage/
 
 # OS files
 .DS_Store

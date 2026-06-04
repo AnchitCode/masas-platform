@@ -1,7 +1,9 @@
 const dotenv = require('dotenv');
 
-// Load .env file before anything else
-dotenv.config();
+// Load .env.test when running tests, otherwise .env
+dotenv.config({
+  path: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
+});
 
 /**
  * Validates that all required environment variables are present.

@@ -27,8 +27,10 @@ app.use((req, res, next) => {
 // CORS
 app.use(cors(corsOptions));
 
-// Request logging: 'dev' format in development, 'combined' in production
-app.use(morgan(env.isDev ? 'dev' : 'combined'));
+// Request logging: skip in test, 'dev' format in development, 'combined' in production
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan(env.isDev ? 'dev' : 'combined'));
+}
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -47,9 +49,28 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// --------------- API Documentation ---------------
+
+if (!env.isProd) {
+  const swaggerUi = require('swagger-ui-express');
+  const swaggerSpec = require('./config/swagger');
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'MASAS API Documentation',
+  }));
+}
+
 // --------------- API Routes (v1) ---------------
 
-// Health check
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Server health check
+ *     responses:
+ *       200:
+ *         description: Server is running
+ */
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
     success: true,
