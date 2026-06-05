@@ -1,9 +1,15 @@
 const dotenv = require('dotenv');
+const fs = require('fs');
+const path = require('path');
 
-// Load .env.test when running tests, otherwise .env
-dotenv.config({
-  path: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
-});
+// Load .env.test when running tests, otherwise .env.
+// Never override existing env vars (CI injects DATABASE_URL, JWT secrets, etc.).
+const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+const envPath = path.resolve(process.cwd(), envFile);
+
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath, override: false });
+}
 
 /**
  * Validates that all required environment variables are present.

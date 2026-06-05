@@ -1,14 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
 
-// eslint-disable-next-line react-refresh/only-export-components
 const AuthContext = createContext(null);
 
 /**
  * Auth provider — manages authentication state across the app.
  * Provides: user, loading, login, register, logout, refreshUser
  */
-// eslint-disable-next-line react-refresh/only-export-components
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,5 +92,4 @@ export function useAuth() {
   return context;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export default AuthContext;

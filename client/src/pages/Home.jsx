@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
-  MapPin,
   Navigation,
   CheckCircle2,
   ShieldCheck,

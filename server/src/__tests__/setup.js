@@ -7,6 +7,7 @@
  */
 
 const { execSync } = require('child_process');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
@@ -14,9 +15,12 @@ const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
 // ─── Database lifecycle ───────────────────────────────────────
 
 beforeAll(async () => {
-  // Ensure the test database schema is up-to-date
+  // Ensure the test database schema is up-to-date.
+  // CI provides DATABASE_URL via workflow env; local dev uses .env.test.
+  const serverRoot = path.resolve(__dirname, '../..');
   execSync('npx prisma migrate deploy', {
     env: { ...process.env, NODE_ENV: 'test' },
+    cwd: serverRoot,
     stdio: 'pipe',
   });
 });

@@ -5,7 +5,6 @@ import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { FormField, Input } from '../components/ui/forms';
 import { Button } from '../components/ui/Button';
 import AlertBanner from '../components/ui/AlertBanner';
-import { APP_NAME } from '../utils/constants';
 import logoUrl from '../assets/logo.jpg';
 
 export default function Register() {

@@ -1,7 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { APP_NAME } from '../../utils/constants';
 import { Menu, X, LogOut } from 'lucide-react';
 import { Button } from '../ui/Button';
 import StatusBadge from '../ui/StatusBadge';

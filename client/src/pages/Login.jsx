@@ -5,7 +5,6 @@ import { Mail, Lock, ArrowRight } from 'lucide-react';
 import AlertBanner from '../components/ui/AlertBanner';
 import { FormField, Input } from '../components/ui/forms';
 import { Button } from '../components/ui/Button';
-import { APP_NAME } from '../utils/constants';
 import logoUrl from '../assets/logo.jpg';
 
 export default function Login() {
@@ -16,8 +15,6 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const from = location.state?.from?.pathname || '/dashboard';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
