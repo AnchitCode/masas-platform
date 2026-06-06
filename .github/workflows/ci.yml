@@ -75,6 +75,8 @@ jobs:
       JWT_REFRESH_SECRET: ci-test-refresh-secret-minimum-32-characters-long
       NODE_ENV: test
       RATE_LIMIT_MAX: 10000
+      DATABASE_BRANCH: masas-test
+      ALLOW_TEST_DB_RESET: 'true'
 
     steps:
       - uses: actions/checkout@v4

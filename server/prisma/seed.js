@@ -8,7 +8,6 @@ const SALT_ROUNDS = 12;
 /**
  * Seed script — creates a default admin account.
  * Idempotent: safe to run multiple times (uses upsert).
- *
  * Usage:
  *   npm run seed
  *   node prisma/seed.js

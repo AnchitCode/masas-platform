@@ -1,13 +1,70 @@
 /**
  * Global test setup for MASAS backend.
  *
- * - Cleans all tables before each test (TRUNCATE CASCADE)
- * - Provides factory helpers for creating test data
- * - Disconnects Prisma after all tests
+ * SAFETY: This file performs destructive operations (TRUNCATE CASCADE).
+ * It enforces a triple safety check before ANY database operation:
+ *   1. NODE_ENV must be "test"
+ *   2. DATABASE_BRANCH must be "masas-test"
+ *   3. ALLOW_TEST_DB_RESET must be "true"
+ *
+ * CRITICAL: .env.test is loaded with `override: true` BEFORE any module
+ * imports to prevent Prisma's built-in dotenv from loading production .env.
  */
 
-const { execSync } = require('child_process');
+// ─── Step 1: Load .env.test FIRST — before ANY require ───────
+// Prisma Client auto-loads .env when instantiated. We must set
+// DATABASE_URL in process.env BEFORE requiring lib/prisma.
+const dotenv = require('dotenv');
 const path = require('path');
+
+const envTestPath = path.resolve(__dirname, '../../.env.test');
+dotenv.config({ path: envTestPath, override: true });
+
+// ─── Step 2: Triple safety check — BEFORE any DB module loads ─
+function enforceTestSafety(context) {
+  const errors = [];
+
+  if (process.env.NODE_ENV !== 'test') {
+    errors.push(
+      `NODE_ENV is "${process.env.NODE_ENV}" (expected "test")`
+    );
+  }
+
+  if (process.env.DATABASE_BRANCH !== 'masas-test') {
+    errors.push(
+      `DATABASE_BRANCH is "${process.env.DATABASE_BRANCH}" (expected "masas-test")`
+    );
+  }
+
+  if (process.env.ALLOW_TEST_DB_RESET !== 'true') {
+    errors.push(
+      `ALLOW_TEST_DB_RESET is "${process.env.ALLOW_TEST_DB_RESET}" (expected "true")`
+    );
+  }
+
+  if (!process.env.DATABASE_URL) {
+    errors.push('DATABASE_URL is missing');
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `\n🛑 TEST SAFETY CHECK FAILED [${context}]\n` +
+      `\nRefusing to proceed — destructive test operations blocked.\n\n` +
+      errors.map((e) => `  ✖ ${e}`).join('\n') +
+      `\n\nEnsure your server/.env.test has:\n` +
+      `  NODE_ENV=test\n` +
+      `  DATABASE_BRANCH=masas-test\n` +
+      `  ALLOW_TEST_DB_RESET=true\n` +
+      `  DATABASE_URL=<your NeonDB test branch URL>\n`
+    );
+  }
+}
+
+// Run safety check BEFORE loading Prisma (which connects to DB)
+enforceTestSafety('module load');
+
+// ─── Step 3: NOW it's safe to load DB modules ────────────────
+const { execSync } = require('child_process');
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
@@ -15,17 +72,28 @@ const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
 // ─── Database lifecycle ───────────────────────────────────────
 
 beforeAll(async () => {
-  // Ensure the test database schema is up-to-date.
-  // CI provides DATABASE_URL via workflow env; local dev uses .env.test.
+  // Re-verify safety before running migrations
+  enforceTestSafety('beforeAll — prisma migrate deploy');
+
+  // Run migrations against the test database.
+  // Pass DATABASE_URL explicitly via env to override Prisma CLI's
+  // built-in .env loading (which would load the production .env).
   const serverRoot = path.resolve(__dirname, '../..');
   execSync('npx prisma migrate deploy', {
-    env: { ...process.env, NODE_ENV: 'test' },
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+      DATABASE_URL: process.env.DATABASE_URL, // explicit — from .env.test
+    },
     cwd: serverRoot,
     stdio: 'pipe',
   });
 });
 
 beforeEach(async () => {
+  // Re-verify safety before every TRUNCATE
+  enforceTestSafety('beforeEach — TRUNCATE');
+
   // Clean tables in reverse-dependency order
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE "pharmacy_inventory", "pharmacies", "medicine_catalog", "users" CASCADE

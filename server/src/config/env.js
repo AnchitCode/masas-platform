@@ -2,13 +2,16 @@ const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
 
-// Load .env.test when running tests, otherwise .env.
-// Never override existing env vars (CI injects DATABASE_URL, JWT secrets, etc.).
-const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+// Load the correct .env file based on NODE_ENV.
+// In test mode, use `override: true` because Prisma Client's built-in
+// dotenv may have already loaded production .env values. We must ensure
+// .env.test values take precedence.
+const isTest = process.env.NODE_ENV === 'test';
+const envFile = isTest ? '.env.test' : '.env';
 const envPath = path.resolve(process.cwd(), envFile);
 
 if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath, override: false });
+  dotenv.config({ path: envPath, override: isTest });
 }
 
 /**
