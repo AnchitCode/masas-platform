@@ -1,13 +1,14 @@
 const js = require('@eslint/js');
 const globals = require('globals');
+const tseslint = require('typescript-eslint');
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'coverage/**', 'prisma/migrations/**'],
+    ignores: ['node_modules/**', 'coverage/**', 'prisma/migrations/**', 'dist/**', 'eslint.config.js', 'vitest.config.ts'],
   },
+  ...tseslint.configs.recommended,
   {
-    ...js.configs.recommended,
-    files: ['src/**/*.js', 'prisma/**/*.js'],
+    files: ['src/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',
@@ -24,9 +25,9 @@ module.exports = [
       },
     },
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-console': 'off',
-      'consistent-return': 'warn',
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 ];
