@@ -77,6 +77,8 @@ jobs:
       RATE_LIMIT_MAX: 10000
       DATABASE_BRANCH: masas-test
       ALLOW_TEST_DB_RESET: 'true'
+      SAFE_TEST_DATABASE_HOST: localhost
+      PRODUCTION_DATABASE_HOST: ${{ secrets.PRODUCTION_DATABASE_HOST }}
 
     steps:
       - uses: actions/checkout@v4
