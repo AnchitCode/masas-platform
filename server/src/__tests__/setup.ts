@@ -2,10 +2,8 @@
  * Global test setup for MASAS backend.
  *
  * SAFETY: This file performs destructive operations (TRUNCATE CASCADE).
- * It enforces a triple safety check before ANY database operation:
- *   1. NODE_ENV must be "test"
- *   2. DATABASE_BRANCH must be "masas-test"
- *   3. ALLOW_TEST_DB_RESET must be "true"
+ * It uses the central database safety guard (dbSafety.ts) which enforces
+ * 8 checks including hostname validation before ANY database operation.
  */
 
 // ─── Step 1: Load .env.test FIRST — before ANY require ───────
@@ -15,11 +13,12 @@ import { execSync } from 'child_process';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.js';
+import { assertTestDatabaseSafety } from '../utils/dbSafety.js';
 
 const envTestPath = path.resolve(__dirname, '../../.env.test');
 dotenv.config({ path: envTestPath, override: true });
 
-// ─── Step 2: Triple safety check ─────────────────────────────
+// ─── Step 2: Central safety check ────────────────────────────
 
 interface TestUserOverrides {
   email?: string;
@@ -49,52 +48,13 @@ interface TestInventoryOverrides {
   isAvailable?: boolean;
 }
 
-function enforceTestSafety(context: string): void {
-  const errors: string[] = [];
-
-  if (process.env.NODE_ENV !== 'test') {
-    errors.push(
-      `NODE_ENV is "${process.env.NODE_ENV}" (expected "test")`
-    );
-  }
-
-  if (process.env.DATABASE_BRANCH !== 'masas-test') {
-    errors.push(
-      `DATABASE_BRANCH is "${process.env.DATABASE_BRANCH}" (expected "masas-test")`
-    );
-  }
-
-  if (process.env.ALLOW_TEST_DB_RESET !== 'true') {
-    errors.push(
-      `ALLOW_TEST_DB_RESET is "${process.env.ALLOW_TEST_DB_RESET}" (expected "true")`
-    );
-  }
-
-  if (!process.env.DATABASE_URL) {
-    errors.push('DATABASE_URL is missing');
-  }
-
-  if (errors.length > 0) {
-    throw new Error(
-      `\n🛑 TEST SAFETY CHECK FAILED [${context}]\n` +
-      `\nRefusing to proceed — destructive test operations blocked.\n\n` +
-      errors.map((e) => `  ✖ ${e}`).join('\n') +
-      `\n\nEnsure your server/.env.test has:\n` +
-      `  NODE_ENV=test\n` +
-      `  DATABASE_BRANCH=masas-test\n` +
-      `  ALLOW_TEST_DB_RESET=true\n` +
-      `  DATABASE_URL=<your NeonDB test branch URL>\n`
-    );
-  }
-}
-
 // Run safety check BEFORE any DB operations
-enforceTestSafety('module load');
+assertTestDatabaseSafety('module load');
 
 // ─── Database lifecycle ───────────────────────────────────────
 
 beforeAll(async () => {
-  enforceTestSafety('beforeAll — prisma migrate deploy');
+  assertTestDatabaseSafety('beforeAll — prisma migrate deploy');
 
   const serverRoot = path.resolve(__dirname, '../..');
   execSync('npx prisma migrate deploy', {
@@ -109,7 +69,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  enforceTestSafety('beforeEach — TRUNCATE');
+  assertTestDatabaseSafety('beforeEach — TRUNCATE');
 
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE "pharmacy_inventory", "pharmacies", "medicine_catalog", "users" CASCADE
