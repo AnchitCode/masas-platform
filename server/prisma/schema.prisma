@@ -29,17 +29,90 @@ enum PharmacyStatus {
 
 /// User account — only PHARMACY and ADMIN roles at MVP (no customer auth)
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         UserRole @default(PHARMACY)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String?  @map("password_hash")          // nullable for Google-only users
+  name            String?                                  // from register form or Google profile
+  avatarUrl       String?  @map("avatar_url")             // Google profile picture
+  googleId        String?  @unique @map("google_id")      // Google OAuth sub claim
+  isEmailVerified Boolean  @default(false) @map("is_email_verified")
+  tokenVersion    Int      @default(0) @map("token_version") // increment to revoke all refresh tokens
+  role            UserRole @default(PHARMACY)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
-  pharmacy Pharmacy?
+  pharmacy                Pharmacy?
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  authAuditLogs           AuthAuditLog[]
 
   @@map("users")
+}
+
+/// Server-side stored refresh tokens for revocation support
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")      // SHA-256 hash of the JWT
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  userAgent String?   @map("user_agent")
+  ipAddress String?   @map("ip_address")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// Hashed password reset tokens (raw token emailed, only hash stored)
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")      // SHA-256(crypto.randomBytes(32))
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
+/// Hashed email verification tokens (raw token emailed, only hash stored)
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")      // SHA-256(crypto.randomBytes(32))
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@map("email_verification_tokens")
+}
+
+/// Authentication audit log for security monitoring
+model AuthAuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")                   // nullable for failed login attempts
+  action    String                                      // LOGIN, LOGOUT, GOOGLE_LOGIN, PASSWORD_RESET, etc.
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?                                       // additional context (e.g., failure reason)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("auth_audit_logs")
 }
 
 /// Pharmacy profile — linked 1:1 with a PHARMACY user

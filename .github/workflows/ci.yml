@@ -79,6 +79,13 @@ jobs:
       ALLOW_TEST_DB_RESET: 'true'
       SAFE_TEST_DATABASE_HOST: localhost
       PRODUCTION_DATABASE_HOST: ${{ secrets.PRODUCTION_DATABASE_HOST }}
+      # Auth placeholders — not real secrets, just enough to pass env validation
+      GOOGLE_CLIENT_ID: ci-placeholder-google-client-id
+      SMTP_HOST: localhost
+      SMTP_PORT: '587'
+      SMTP_USER: ci-test@localhost
+      SMTP_PASS: ci-placeholder-password
+      SMTP_FROM: noreply@masas-test.localhost
 
     steps:
       - uses: actions/checkout@v4

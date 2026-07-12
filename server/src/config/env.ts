@@ -23,6 +23,12 @@ const requiredVars: string[] = [
   'DATABASE_URL',
   'JWT_ACCESS_SECRET',
   'JWT_REFRESH_SECRET',
+  'GOOGLE_CLIENT_ID',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASS',
+  'SMTP_FROM',
 ];
 
 const missing = requiredVars.filter((key) => !process.env[key]);
@@ -45,6 +51,14 @@ const env: EnvConfig = {
   JWT_REFRESH_EXPIRY: process.env.JWT_REFRESH_EXPIRY || '7d',
 
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID!,
+
+  SMTP_HOST: process.env.SMTP_HOST!,
+  SMTP_PORT: parseInt(process.env.SMTP_PORT!, 10) || 587,
+  SMTP_USER: process.env.SMTP_USER!,
+  SMTP_PASS: process.env.SMTP_PASS!,
+  SMTP_FROM: process.env.SMTP_FROM!,
 
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS!, 10) || 60000,
   RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX!, 10) || 100,

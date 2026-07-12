@@ -3,6 +3,12 @@ import Navbar from './components/layout/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AccountCreated from './pages/AccountCreated';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Profile from './pages/dashboard/Profile';
@@ -23,6 +29,12 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/account-created" element={<AccountCreated />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/search" element={<Search />} />
           <Route path="/pharmacy/:id" element={<PublicPharmacy />} />
 
@@ -61,4 +73,3 @@ function App() {
 }
 
 export default App;
-

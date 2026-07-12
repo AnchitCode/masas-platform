@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
+import { Mail, Lock, ArrowRight, User } from 'lucide-react';
 import AlertBanner from '../components/ui/AlertBanner';
 import { FormField, Input } from '../components/ui/forms';
 import { Button } from '../components/ui/Button';
@@ -10,22 +11,58 @@ import axios from 'axios';
 import logoUrl from '../assets/logo.jpg';
 
 export default function Register() {
-  const { register } = useAuth();
+  const { register, googleAuth } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Array<{ field: string; message: string }>>([]);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  // Google auth callback
+  useGoogleAuth(async (idToken) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const response = await googleAuth(idToken);
+      const res = response as { data?: { isNewUser?: boolean } };
+      if (res?.data?.isNewUser) {
+        // New user via Google → go to dashboard (profile setup flow)
+        navigate('/dashboard', { replace: true });
+      } else {
+        // Existing user → go to dashboard
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 403) {
+        setError(err.response?.data?.message || 'This account cannot use Google sign-in.');
+      } else {
+        setError(getErrorMessage(err, 'Google sign-in failed. Please try again.'));
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, googleBtnRef);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setFieldErrors([]);
+
+    if (!agreedToTerms || !agreedToPrivacy) {
+      setError('Please agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -41,11 +78,12 @@ export default function Register() {
 
     try {
       await register({
+        name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: 'PHARMACY',
       });
-      navigate('/dashboard', { replace: true });
+      // Redirect to account-created page (NOT dashboard — email verification required)
+      navigate(`/account-created?email=${encodeURIComponent(formData.email)}`, { replace: true });
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data;
@@ -69,6 +107,7 @@ export default function Register() {
             <img src={logoUrl} alt="MASAS Logo" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
           </div>
           <h1 className="masas-typography-page-title" style={{ fontSize: 24 }}>Create your account</h1>
+          <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>Join MASAS to get started</p>
         </div>
 
         <div className="card" style={{ padding: 40 }}>
@@ -86,7 +125,43 @@ export default function Register() {
             </div>
           )}
 
+          {/* Google Sign-In Button */}
+          <div
+            ref={googleBtnRef}
+            style={{
+              width: '100%',
+              minHeight: 44,
+              display: 'flex',
+              justifyContent: 'center',
+              opacity: googleLoading ? 0.6 : 1,
+              pointerEvents: googleLoading ? 'none' : 'auto',
+            }}
+          />
+
+          {/* Divider */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            margin: '20px 0', color: 'var(--muted)', fontSize: 13,
+          }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span>or</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <FormField label="Full name">
+              <Input
+                id="name"
+                type="text"
+                leftIcon={User}
+                placeholder="Anchit Gupta"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                autoComplete="name"
+              />
+            </FormField>
+
             <FormField label="Email address">
               <Input
                 id="email"
@@ -127,6 +202,38 @@ export default function Register() {
                 autoComplete="new-password"
               />
             </FormField>
+
+            {/* Terms & Privacy checkboxes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  style={{ width: 16, height: 16, marginTop: 1, accentColor: 'var(--green-600)' }}
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link to="/terms" style={{ color: 'var(--green-600)', fontWeight: 500 }} target="_blank">
+                    Terms of Service
+                  </Link>
+                </span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={agreedToPrivacy}
+                  onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                  style={{ width: 16, height: 16, marginTop: 1, accentColor: 'var(--green-600)' }}
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link to="/privacy" style={{ color: 'var(--green-600)', fontWeight: 500 }} target="_blank">
+                    Privacy Policy
+                  </Link>
+                </span>
+              </label>
+            </div>
 
             <Button
               type="submit"
