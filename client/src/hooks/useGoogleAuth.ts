@@ -13,7 +13,9 @@ export function useGoogleAuth(
   buttonRef: React.RefObject<HTMLDivElement | null>,
 ) {
   const callbackRef = useRef(onSuccess);
-  callbackRef.current = onSuccess;
+  useEffect(() => {
+    callbackRef.current = onSuccess;
+  });
 
   const initGoogle = useCallback(() => {
     const google = (window as unknown as Record<string, unknown>).google as

@@ -9,15 +9,12 @@ export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
 
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
-  const [message, setMessage] = useState('');
+  // Derive initial state from token presence — avoids setState in effect for the no-token case
+  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>(token ? 'verifying' : 'error');
+  const [message, setMessage] = useState(token ? '' : 'No verification token provided.');
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setMessage('No verification token provided.');
-      return;
-    }
+    if (!token) return;
 
     let cancelled = false;
 
