@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../app.js';
-import { createTestUser, createTestPharmacy } from './setup.js';
+import { createTestUser, createTestPharmacy, storeRefreshToken } from './setup.js';
 
 describe('Auth Module', () => {
   // ─── Register ─────────────────────────────────────────────
@@ -9,30 +9,33 @@ describe('Auth Module', () => {
     it('registers a new user with valid data', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ email: 'new@test.com', password: 'Password123' });
+        .send({ name: 'Test User', email: 'new@test.com', password: 'Password123' });
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.user).toBeDefined();
       expect(res.body.data.user.email).toBe('new@test.com');
       expect(res.body.data.user.role).toBe('PHARMACY');
-      expect(res.body.data.accessToken).toBeDefined();
+      // Register no longer returns accessToken (email verification required)
+      expect(res.body.data.accessToken).toBeUndefined();
       expect(res.body.data.user.passwordHash).toBeUndefined();
     });
 
-    it('sets refreshToken as httpOnly cookie', async () => {
+    it('does not set refreshToken cookie on register', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ email: 'cookie@test.com', password: 'Password123' });
+        .send({ name: 'Cookie Test', email: 'cookie@test.com', password: 'Password123' });
 
       expect(res.status).toBe(201);
       const cookies = res.headers['set-cookie'];
-      expect(cookies).toBeDefined();
-      const refreshCookie = Array.isArray(cookies)
-        ? cookies.find((c: string) => c.startsWith('refreshToken='))
-        : cookies;
-      expect(refreshCookie).toBeDefined();
-      expect(refreshCookie).toMatch(/httponly/i);
+      // No cookies should be set since register no longer auto-logs in
+      if (cookies) {
+        const refreshCookie = Array.isArray(cookies)
+          ? cookies.find((c: string) => c.startsWith('refreshToken='))
+          : cookies;
+        // Cookie should not contain a real refresh token
+        expect(refreshCookie).toBeUndefined();
+      }
     });
 
     it('rejects duplicate email with 409', async () => {
@@ -40,7 +43,7 @@ describe('Auth Module', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ email: 'dup@test.com', password: 'Password123' });
+        .send({ name: 'Dup User', email: 'dup@test.com', password: 'Password123' });
 
       expect(res.status).toBe(409);
       expect(res.body.success).toBe(false);
@@ -49,7 +52,7 @@ describe('Auth Module', () => {
     it('rejects missing email with 400', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ password: 'Password123' });
+        .send({ name: 'No Email', password: 'Password123' });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -58,7 +61,7 @@ describe('Auth Module', () => {
     it('rejects short password (< 8 chars) with 400', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ email: 'short@test.com', password: '123' });
+        .send({ name: 'Short Pass', email: 'short@test.com', password: '123' });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -67,7 +70,7 @@ describe('Auth Module', () => {
     it('rejects invalid email format with 400', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ email: 'notanemail', password: 'Password123' });
+        .send({ name: 'Invalid Email', email: 'notanemail', password: 'Password123' });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -76,7 +79,7 @@ describe('Auth Module', () => {
     it('defaults role to PHARMACY', async () => {
       const res = await request(app)
         .post('/api/v1/auth/register')
-        .send({ email: 'default@test.com', password: 'Password123' });
+        .send({ name: 'Default Role', email: 'default@test.com', password: 'Password123' });
 
       expect(res.status).toBe(201);
       expect(res.body.data.user.role).toBe('PHARMACY');
@@ -140,7 +143,9 @@ describe('Auth Module', () => {
 
   describe('POST /api/v1/auth/refresh', () => {
     it('refreshes token with valid cookie', async () => {
-      const { refreshToken } = await createTestUser({ email: 'refresh@test.com' });
+      const { user, refreshToken } = await createTestUser({ email: 'refresh@test.com' });
+      // Store the refresh token in DB so the new service can validate it
+      await storeRefreshToken(user.id, refreshToken);
 
       const res = await request(app)
         .post('/api/v1/auth/refresh')

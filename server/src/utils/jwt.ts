@@ -3,6 +3,8 @@ import type { SignOptions } from 'jsonwebtoken';
 import env from '../config/env.js';
 import type { AccessTokenPayload, RefreshTokenPayload } from '../types/index.js';
 
+import crypto from 'crypto';
+
 /**
  * JWT utility helpers for token generation and verification.
  */
@@ -19,10 +21,18 @@ const generateAccessToken = (payload: AccessTokenPayload): string => {
 
 /**
  * Generate a refresh token (long-lived).
+ * Includes a random `jti` (JWT ID) to guarantee each token is unique,
+ * even when generated with the same payload in the same second.
+ * @param payload - Must include userId and tokenVersion
+ * @param expiresIn - Override expiry (e.g. '30d' for remember-me). Defaults to env config.
  */
-const generateRefreshToken = (payload: RefreshTokenPayload): string => {
+const generateRefreshToken = (
+  payload: RefreshTokenPayload,
+  expiresIn?: string,
+): string => {
   const options: SignOptions = {
-    expiresIn: env.JWT_REFRESH_EXPIRY as string & jwt.SignOptions['expiresIn'],
+    expiresIn: (expiresIn || env.JWT_REFRESH_EXPIRY) as string & jwt.SignOptions['expiresIn'],
+    jwtid: crypto.randomUUID(),
   };
   return jwt.sign(payload as object, env.JWT_REFRESH_SECRET, options);
 };

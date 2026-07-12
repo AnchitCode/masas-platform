@@ -25,6 +25,11 @@ export default function ProtectedRoute({ children, roles = [] }: ProtectedRouteP
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Email not verified → redirect to account-created page
+  if (user && user.isEmailVerified === false) {
+    return <Navigate to={`/account-created?email=${encodeURIComponent(user.email)}`} replace />;
+  }
+
   // Check role if specified
   if (roles.length > 0 && user && !roles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;

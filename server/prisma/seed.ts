@@ -29,11 +29,13 @@ async function main(): Promise<void> {
     update: {
       passwordHash,
       role: 'ADMIN',
+      isEmailVerified: true,
     },
     create: {
       email,
       passwordHash,
       role: 'ADMIN',
+      isEmailVerified: true,
     },
   });
 

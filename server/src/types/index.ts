@@ -14,6 +14,7 @@ export interface AccessTokenPayload {
 
 export interface RefreshTokenPayload {
   userId: string;
+  tokenVersion: number;
 }
 
 // ─── Extended Express Request ────────────────────────────────────
@@ -76,6 +77,12 @@ export interface EnvConfig {
   JWT_ACCESS_EXPIRY: string;
   JWT_REFRESH_EXPIRY: string;
   CLIENT_URL: string;
+  GOOGLE_CLIENT_ID: string;
+  SMTP_HOST: string;
+  SMTP_PORT: number;
+  SMTP_USER: string;
+  SMTP_PASS: string;
+  SMTP_FROM: string;
   RATE_LIMIT_WINDOW_MS: number;
   RATE_LIMIT_MAX: number;
   isDev: boolean;

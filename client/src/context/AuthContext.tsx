@@ -4,8 +4,15 @@ import authService from '../services/authService';
 interface User {
   id: string;
   email: string;
+  name?: string | null;
+  avatarUrl?: string | null;
   role: string;
-  pharmacy?: Record<string, unknown>;
+  isEmailVerified?: boolean;
+  pharmacy?: {
+    id: string;
+    name: string;
+    status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  } | null;
   [key: string]: unknown;
 }
 
@@ -13,8 +20,9 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (data: { email: string; password: string }) => Promise<unknown>;
-  register: (data: { email: string; password: string; role?: string }) => Promise<unknown>;
+  login: (data: { email: string; password: string; rememberMe?: boolean }) => Promise<unknown>;
+  register: (data: { name: string; email: string; password: string }) => Promise<unknown>;
+  googleAuth: (idToken: string) => Promise<unknown>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -48,14 +56,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
-  const login = async (data: { email: string; password: string }) => {
+  const login = async (data: { email: string; password: string; rememberMe?: boolean }) => {
     const response = await authService.login(data);
     setUser(response?.data?.user ?? null);
     return response;
   };
 
-  const register = async (data: { email: string; password: string; role?: string }) => {
+  const register = async (data: { name: string; email: string; password: string }) => {
+    // Register does NOT set user — user must verify email, then login
     const response = await authService.register(data);
+    return response;
+  };
+
+  const googleAuth = async (idToken: string) => {
+    const response = await authService.googleAuth(idToken);
     setUser(response?.data?.user ?? null);
     return response;
   };
@@ -80,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !!user,
     login,
     register,
+    googleAuth,
     logout,
     refreshUser,
   };
