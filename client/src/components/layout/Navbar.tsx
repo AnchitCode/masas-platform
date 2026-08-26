@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Menu, X, LogOut } from 'lucide-react';
 import { Button } from '../ui/Button';
 import StatusBadge from '../ui/StatusBadge';
+import NotificationBell from './NotificationBell';
 import logoUrl from '../../assets/logo.jpg';
 import { cn } from '../../lib/utils';
 
@@ -62,18 +63,30 @@ export default function Navbar() {
           About
         </a>
         {isAuthenticated && (
-          <Link
-            to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'}
-            className={cn(
-              'navbar-link',
-              (user?.role === 'ADMIN'
-                ? location.pathname.startsWith('/admin')
-                : location.pathname.startsWith('/dashboard')
-              ) && 'active'
+          <>
+            {user?.role === 'CUSTOMER' && (
+              <Link
+                to="/saved-searches"
+                className={cn('navbar-link', location.pathname === '/saved-searches' && 'active')}
+              >
+                Saved searches
+              </Link>
             )}
-          >
-            {user?.role === 'ADMIN' ? 'Admin panel' : 'Dashboard'}
-          </Link>
+            <Link
+              to={user?.role === 'ADMIN' ? '/admin' : user?.role === 'CUSTOMER' ? '/search' : '/dashboard'}
+              className={cn(
+                'navbar-link',
+                (user?.role === 'ADMIN'
+                  ? location.pathname.startsWith('/admin')
+                  : user?.role === 'CUSTOMER'
+                    ? location.pathname === '/search'
+                    : location.pathname.startsWith('/dashboard')
+                ) && 'active'
+              )}
+            >
+              {user?.role === 'ADMIN' ? 'Admin panel' : user?.role === 'CUSTOMER' ? 'Search' : 'Dashboard'}
+            </Link>
+          </>
         )}
       </div>
 
@@ -92,6 +105,7 @@ export default function Navbar() {
                 </>
               )}
             </div>
+            <NotificationBell />
             <button
               onClick={handleLogout}
               className="btn btn-ghost btn-sm"
@@ -107,7 +121,7 @@ export default function Navbar() {
               Sign in
             </Link>
             <Button size="sm" onClick={() => navigate('/register')}>
-              Register pharmacy
+              Register
             </Button>
           </div>
         )}
