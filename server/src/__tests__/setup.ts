@@ -6,25 +6,21 @@
  * 8 checks including hostname validation before ANY database operation.
  */
 
-// ─── Step 1: Load .env.test FIRST — before ANY require ───────
-import dotenv from 'dotenv';
-import path from 'path';
-import { execSync } from 'child_process';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
+import type { Prisma } from '@prisma/client';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.js';
 import { generateSecureToken, hashToken } from '../utils/tokenUtils.js';
 import { assertTestDatabaseSafety } from '../utils/dbSafety.js';
+import { redisClient } from '../config/redis.js';
+import { emailQueue, alertQueue } from '../jobs/queues.js';
 
-const envTestPath = path.resolve(__dirname, '../../.env.test');
-dotenv.config({ path: envTestPath, override: true });
-
-// ─── Step 2: Central safety check ────────────────────────────
+// ─── Step 1: Central safety check ────────────────────────────
 
 interface TestUserOverrides {
   email?: string;
   password?: string;
-  role?: 'PHARMACY' | 'ADMIN';
+  role?: 'PHARMACY' | 'ADMIN' | 'CUSTOMER';
   name?: string;
   isEmailVerified?: boolean;
   googleId?: string;
@@ -51,36 +47,48 @@ interface TestInventoryOverrides {
   isAvailable?: boolean;
 }
 
-// Run safety check BEFORE any DB operations
-assertTestDatabaseSafety('module load');
+interface TestNotificationOverrides {
+  type?: 'PHARMACY_VERIFIED' | 'PHARMACY_REJECTED' | 'LOW_STOCK_ALERT' | 'MEDICINE_AVAILABLE' | 'SYSTEM_ANNOUNCEMENT';
+  title?: string;
+  message?: string;
+  data?: Prisma.InputJsonValue | null;
+  isRead?: boolean;
+}
 
 // ─── Database lifecycle ───────────────────────────────────────
 
-beforeAll(async () => {
-  assertTestDatabaseSafety('beforeAll — prisma migrate deploy');
-
-  const serverRoot = path.resolve(__dirname, '../..');
-  execSync('npx prisma migrate deploy', {
-    env: {
-      ...process.env,
-      NODE_ENV: 'test',
-      DATABASE_URL: process.env.DATABASE_URL,
-    },
-    cwd: serverRoot,
-    stdio: 'pipe',
-  });
-});
-
 beforeEach(async () => {
-  assertTestDatabaseSafety('beforeEach — TRUNCATE');
+  await assertTestDatabaseSafety(prisma, 'beforeEach — TRUNCATE');
 
   await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE "auth_audit_logs", "refresh_tokens", "password_reset_tokens", "email_verification_tokens", "pharmacy_inventory", "pharmacies", "medicine_catalog", "users" CASCADE
+    TRUNCATE TABLE "availability_alerts", "saved_searches", "notifications", "auth_audit_logs", "refresh_tokens", "password_reset_tokens", "email_verification_tokens", "pharmacy_inventory", "pharmacies", "medicine_catalog", "users" CASCADE
   `);
+
+  // Redis cleanup — flush only masas: prefixed BullMQ keys
+  try {
+    if (redisClient.status === 'wait') {
+      await redisClient.connect();
+    }
+    if (redisClient.status === 'ready') {
+      const keys = await redisClient.keys('masas:*');
+      if (keys.length > 0) {
+        await redisClient.del(...keys);
+      }
+    }
+  } catch {
+    // Redis may not be available in all test environments — don't fail
+  }
 });
 
 afterAll(async () => {
   await prisma.$disconnect();
+  try {
+    await emailQueue.close();
+    await alertQueue.close();
+    await redisClient.quit();
+  } catch {
+    // Redis may not be available — don't fail teardown
+  }
 });
 
 // ─── Factory helpers ──────────────────────────────────────────
@@ -219,6 +227,43 @@ async function storeRefreshToken(userId: string, token: string, expiresInDays = 
   });
 }
 
+async function createTestNotification(userId: string, overrides: TestNotificationOverrides = {}) {
+  const notification = await prisma.notification.create({
+    data: {
+      userId,
+      type: overrides.type || 'SYSTEM_ANNOUNCEMENT',
+      title: overrides.title || 'Test Notification',
+      message: overrides.message || 'This is a test notification.',
+      data: overrides.data === null || overrides.data === undefined ? undefined : overrides.data,
+      isRead: overrides.isRead ?? false,
+    },
+  });
+
+  return notification;
+}
+
+export interface TestSavedSearchOverrides {
+  query?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
+  isActive?: boolean;
+}
+
+async function createTestSavedSearch(userId: string, overrides: TestSavedSearchOverrides = {}) {
+  const savedSearch = await prisma.savedSearch.create({
+    data: {
+      userId,
+      query: overrides.query || 'paracetamol',
+      latitude: overrides.latitude ?? 28.6139,
+      longitude: overrides.longitude ?? 77.2090,
+      radiusKm: overrides.radiusKm ?? 5,
+      isActive: overrides.isActive ?? true,
+    },
+  });
+  return savedSearch;
+}
+
 export {
   prisma,
   createTestUser,
@@ -230,6 +275,8 @@ export {
   createEmailVerificationToken,
   createPasswordResetToken,
   storeRefreshToken,
+  createTestNotification,
+  createTestSavedSearch,
   generateSecureToken,
   hashToken,
 };

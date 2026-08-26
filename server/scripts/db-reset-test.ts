@@ -13,24 +13,27 @@
 
 import dotenv from 'dotenv';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
 import { assertTestDatabaseSafety } from '../src/utils/dbSafety.js';
 
 // ─── Step 1: Load .env.test with override ─────────────────────
-// Note: static imports are hoisted, but assertTestDatabaseSafety
-// reads process.env at call time, not at import time.
+// This MUST happen before any Prisma module is imported/evaluated.
 const envTestPath = path.resolve(__dirname, '../.env.test');
 dotenv.config({ path: envTestPath, override: true });
 
 async function main(): Promise<void> {
-  // ─── Step 2: Safety check (reads process.env at call time) ──
-  assertTestDatabaseSafety('db:reset:test');
+  // ─── Step 2: Dynamically import Prisma ────────────────────────
+  // Guarantees PrismaClient is instantiated AFTER the test environment is loaded.
+  const { PrismaClient } = await import('@prisma/client');
+  const prisma = new PrismaClient({
+    datasourceUrl: process.env.DATABASE_URL,
+  });
+
+  // ─── Step 3: Safety check (validates actual active connection)
+  await assertTestDatabaseSafety(prisma, 'db:reset:test TRUNCATE');
 
   console.log('\n🧹 Resetting test database...');
   console.log(`   DATABASE_URL host: ${process.env.SAFE_TEST_DATABASE_HOST}`);
   console.log(`   DATABASE_BRANCH: ${process.env.DATABASE_BRANCH}\n`);
-
-  const prisma = new PrismaClient();
 
   try {
     await prisma.$executeRawUnsafe(`
