@@ -89,6 +89,7 @@ jobs:
       DATABASE_BRANCH: masas-test
       ALLOW_TEST_DB_RESET: 'true'
       SAFE_TEST_DATABASE_HOST: localhost
+      SAFE_TEST_DATABASE_NAME: masas_test
       PRODUCTION_DATABASE_HOST: ${{ secrets.PRODUCTION_DATABASE_HOST }}
       # Auth placeholders — not real secrets, just enough to pass env validation
       GOOGLE_CLIENT_ID: ci-placeholder-google-client-id
