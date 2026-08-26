@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import ApiError from '../../utils/apiError.js';
 import logger from '../../utils/logger.js';
+import { eventBus } from '../../lib/eventBus.js';
 import type { ListPharmaciesQuery, UpdatePharmacyStatusInput } from './admin.validation.js';
 
 /**
@@ -152,6 +153,22 @@ const adminService = {
         user: { select: { email: true } },
       },
     });
+
+    // Emit event — userId from pre-update findUnique (full model), pharmacyName from post-update select
+    if (status === 'VERIFIED') {
+      eventBus.emit('pharmacy.verified', {
+        pharmacyId,
+        userId: pharmacy.userId,
+        pharmacyName: updated.name,
+      });
+    } else if (status === 'REJECTED') {
+      eventBus.emit('pharmacy.rejected', {
+        pharmacyId,
+        userId: pharmacy.userId,
+        pharmacyName: updated.name,
+        reason: rejectionReason,
+      });
+    }
 
     return updated;
   },

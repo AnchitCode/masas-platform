@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma.js';
 import ApiError from '../../utils/apiError.js';
+import { eventBus } from '../../lib/eventBus.js';
 import type { AddInventoryInput } from './inventory.validation.js';
 
 /**
@@ -22,7 +23,7 @@ const getInventory = async (pharmacyId: string) => {
  * Checks if medicine exists in catalog; if not, creates it.
  */
 const addInventory = async (pharmacyId: string, data: AddInventoryInput) => {
-  const { medicineName, genericName, manufacturer, category, dosageForm, price, quantity, expiryDate, isAvailable } = data;
+  const { medicineName, genericName, manufacturer, category, dosageForm, price, quantity, expiryDate, isAvailable, lowStockThreshold } = data;
   const nameLower = medicineName.toLowerCase().trim();
 
   // 1. Find or Create Medicine in Catalog
@@ -57,7 +58,7 @@ const addInventory = async (pharmacyId: string, data: AddInventoryInput) => {
   }
 
   // 3. Create Pharmacy Inventory Record
-  return await prisma.pharmacyInventory.create({
+  const created = await prisma.pharmacyInventory.create({
     data: {
       pharmacyId,
       medicineId: medicine.id,
@@ -65,11 +66,24 @@ const addInventory = async (pharmacyId: string, data: AddInventoryInput) => {
       quantity,
       expiryDate: expiryDate || null,
       isAvailable: isAvailable !== undefined ? isAvailable : true,
+      lowStockThreshold: lowStockThreshold ?? 10,
     },
     include: {
       medicine: true,
     },
   });
+
+  // Emit event — listeners (Socket.io, notifications) handle side effects
+  eventBus.emit('inventory.created', {
+    inventoryId: created.id,
+    pharmacyId,
+    medicineId: created.medicineId,
+    medicineName: created.medicine.name,
+    quantity: created.quantity,
+    lowStockThreshold: created.lowStockThreshold,
+  });
+
+  return created;
 };
 
 /**
@@ -94,13 +108,26 @@ const updateInventory = async (pharmacyId: string, inventoryId: string, data: Re
     updateData.isAvailable = (updateData.quantity as number) > 0;
   }
 
-  return await prisma.pharmacyInventory.update({
+  const updated = await prisma.pharmacyInventory.update({
     where: { id: inventoryId },
     data: updateData,
     include: {
       medicine: true,
     },
   });
+
+  // Emit event — previousQuantity from existing (base fields), medicineName from updated (includes medicine)
+  eventBus.emit('inventory.updated', {
+    inventoryId: updated.id,
+    pharmacyId,
+    medicineId: updated.medicineId,
+    medicineName: updated.medicine.name,
+    quantity: updated.quantity,
+    previousQuantity: existing.quantity,
+    lowStockThreshold: updated.lowStockThreshold,
+  });
+
+  return updated;
 };
 
 /**
@@ -115,9 +142,18 @@ const deleteInventory = async (pharmacyId: string, inventoryId: string) => {
     throw ApiError.notFound('Inventory item not found');
   }
 
-  return await prisma.pharmacyInventory.delete({
+  const deleted = await prisma.pharmacyInventory.delete({
     where: { id: inventoryId },
   });
+
+  // Emit event — only base fields from existing (no include, so no medicineName)
+  eventBus.emit('inventory.deleted', {
+    inventoryId: existing.id,
+    pharmacyId,
+    medicineId: existing.medicineId,
+  });
+
+  return deleted;
 };
 
 export {
