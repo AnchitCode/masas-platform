@@ -107,6 +107,14 @@ app.use('/api/v1/search', searchRoutes);
 import adminRoutes from './modules/admin/admin.routes.js';
 app.use('/api/v1/admin', adminRoutes);
 
+// Notification routes (Phase 8.7)
+import notificationRoutes from './modules/notification/notification.routes.js';
+app.use('/api/v1/notifications', notificationRoutes);
+
+// Saved Searches routes (Phase 8.9)
+import savedSearchRoutes from './modules/search/savedSearch.routes.js';
+app.use('/api/v1/saved-searches', savedSearchRoutes);
+
 // --------------- Error Handling ---------------
 
 // 404 handler for unmatched routes

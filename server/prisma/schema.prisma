@@ -15,6 +15,7 @@ datasource db {
 // ==================== ENUMS ====================
 
 enum UserRole {
+  CUSTOMER
   PHARMACY
   ADMIN
 }
@@ -25,9 +26,17 @@ enum PharmacyStatus {
   REJECTED
 }
 
+enum NotificationType {
+  PHARMACY_VERIFIED
+  PHARMACY_REJECTED
+  LOW_STOCK_ALERT
+  MEDICINE_AVAILABLE
+  SYSTEM_ANNOUNCEMENT
+}
+
 // ==================== MODELS ====================
 
-/// User account — only PHARMACY and ADMIN roles at MVP (no customer auth)
+/// User account — CUSTOMER, PHARMACY, and ADMIN roles
 model User {
   id              String   @id @default(uuid())
   email           String   @unique
@@ -47,6 +56,8 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   authAuditLogs           AuthAuditLog[]
+  notifications           Notification[]
+  savedSearches           SavedSearch[]
 
   @@map("users")
 }
@@ -165,12 +176,14 @@ model PharmacyInventory {
   quantity    Int      @default(0)
   expiryDate  DateTime? @map("expiry_date")
   isAvailable Boolean  @default(true) @map("is_available")
+  lowStockThreshold Int @default(10) @map("low_stock_threshold")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
   pharmacy Pharmacy        @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
   medicine MedicineCatalog @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  availabilityAlerts AvailabilityAlert[]
 
   // A pharmacy can only have one entry per medicine
   @@unique([pharmacyId, medicineId])
@@ -179,3 +192,59 @@ model PharmacyInventory {
   @@index([isAvailable])
   @@map("pharmacy_inventory")
 }
+
+/// Persistent notifications delivered to users
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/// Saved searches for CUSTOMER users
+model SavedSearch {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  query         String
+  latitude      Float
+  longitude     Float
+  radiusKm      Float     @default(5) @map("radius_km")
+  isActive      Boolean   @default(true) @map("is_active")
+  lastCheckedAt DateTime? @map("last_checked_at")
+  lastMatchAt   DateTime? @map("last_match_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availabilityAlerts AvailabilityAlert[]
+
+  @@index([userId])
+  @@map("saved_searches")
+}
+
+/// Availability alert deduplication — tracks which (SavedSearch, InventoryItem)
+/// combinations have already triggered a notification while stock is positive.
+/// Rows are deleted when inventory goes to 0 (reset), allowing re-notification on restock.
+model AvailabilityAlert {
+  id            String   @id @default(uuid())
+  savedSearchId String   @map("saved_search_id")
+  inventoryId   String   @map("inventory_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  savedSearch SavedSearch       @relation(fields: [savedSearchId], references: [id], onDelete: Cascade)
+  inventory   PharmacyInventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([savedSearchId, inventoryId])
+  @@index([inventoryId])
+  @@map("availability_alerts")
+}
+
