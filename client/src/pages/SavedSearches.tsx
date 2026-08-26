@@ -16,21 +16,21 @@ export default function SavedSearches() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadSearches();
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const res = await savedSearchService.list();
+        if (!cancelled) setSearches(res.data);
+      } catch (err: any) {
+        if (!cancelled) setError(err?.response?.data?.message || 'Failed to load saved searches');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
-
-  const loadSearches = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await savedSearchService.list();
-      setSearches(res.data);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load saved searches');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleToggle = async (id: string, currentStatus: boolean) => {
     try {
