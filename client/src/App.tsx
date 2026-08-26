@@ -50,9 +50,9 @@ function App() {
           <Route 
             path="/dashboard" 
             element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
+          <ProtectedRoute roles={['PHARMACY']}>
+              <DashboardLayout />
+            </ProtectedRoute>
             }
           >
             <Route index element={<Dashboard />} />
