@@ -190,3 +190,115 @@ export async function sendPasswordResetEmail(
     throw error;
   }
 }
+
+/**
+ * Send an email notifying a user that their pharmacy was verified.
+ */
+export async function sendPharmacyVerifiedEmail(
+  to: string,
+  pharmacyName: string,
+  dashboardUrl: string,
+): Promise<void> {
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Pharmacy Verified! 🎉</h2>
+    <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.6;">
+      Great news! Your pharmacy <strong>${pharmacyName}</strong> has been successfully verified by our administrators.
+    </p>
+    <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.6;">
+      You can now log in and start managing your inventory on MASAS.
+    </p>
+    ${buttonHtml('Go to Dashboard', dashboardUrl)}
+  `);
+
+  try {
+    await getProvider().sendMail({
+      to,
+      subject: 'Pharmacy Verified — MASAS',
+      html,
+    });
+    logger.info('Pharmacy verified email sent', { to });
+  } catch (error) {
+    logger.error('Failed to send pharmacy verified email', { to, error: String(error) });
+    throw error;
+  }
+}
+
+/**
+ * Send an email notifying a user that their pharmacy was rejected.
+ */
+export async function sendPharmacyRejectedEmail(
+  to: string,
+  pharmacyName: string,
+  reason: string | null,
+  dashboardUrl: string,
+): Promise<void> {
+  const reasonText = reason ? `<p style="margin:0 0 16px;font-size:15px;color:#ef4444;line-height:1.6;padding:12px;background:#fef2f2;border-radius:6px;"><strong>Reason for rejection:</strong> ${reason}</p>` : '';
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Pharmacy Application Update</h2>
+    <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.6;">
+      Unfortunately, we were unable to approve your application for the pharmacy <strong>${pharmacyName}</strong> at this time.
+    </p>
+    ${reasonText}
+    <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.6;">
+      Please log in to your dashboard to review your application, update any incorrect details, and resubmit for approval.
+    </p>
+    ${buttonHtml('Review Application', dashboardUrl)}
+  `);
+
+  try {
+    await getProvider().sendMail({
+      to,
+      subject: 'Pharmacy Application Update — MASAS',
+      html,
+    });
+    logger.info('Pharmacy rejected email sent', { to });
+  } catch (error) {
+    logger.error('Failed to send pharmacy rejected email', { to, error: String(error) });
+    throw error;
+  }
+}
+
+/**
+ * Send an email notifying a customer that a medicine they're watching is now available.
+ */
+export async function sendMedicineAvailableEmail(
+  to: string,
+  userName: string | null,
+  medicineName: string,
+  pharmacyName: string,
+  quantity: number,
+  distanceKm: string,
+  searchUrl: string,
+): Promise<void> {
+  const displayName = userName || to.split('@')[0];
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;font-size:20px;color:#111827;">Medicine Now Available! 💊</h2>
+    <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.6;">
+      Hi ${displayName},
+    </p>
+    <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.6;">
+      Great news! <strong>${medicineName}</strong> is now available at <strong>${pharmacyName}</strong>, approximately ${distanceKm} km from your saved location.
+    </p>
+    <p style="margin:0 0 8px;font-size:15px;color:#374151;line-height:1.6;">
+      Current stock: <strong>${quantity} units</strong>
+    </p>
+    ${buttonHtml('View Availability', searchUrl)}
+    <p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">
+      You're receiving this because you have an active saved search for this medicine on MASAS.
+    </p>
+  `);
+
+  try {
+    await getProvider().sendMail({
+      to,
+      subject: `${medicineName} is now available — MASAS`,
+      html,
+    });
+    logger.info('Medicine available email sent', { to, medicineName });
+  } catch (error) {
+    logger.error('Failed to send medicine available email', { to, medicineName, error: String(error) });
+    throw error;
+  }
+}
