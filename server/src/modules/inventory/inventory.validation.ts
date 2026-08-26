@@ -43,6 +43,10 @@ const addInventorySchema = z.object({
   ),
   expiryDate: z.preprocess(preprocessExpiry, z.string().datetime().optional()),
   isAvailable: z.boolean().optional().default(true),
+  lowStockThreshold: z.preprocess(
+    (val) => (val === '' || val === null ? undefined : preprocessInt(val)),
+    z.number().int().nonnegative('Low stock threshold must be 0 or more').optional()
+  ),
 });
 
 const updateInventorySchema = z
@@ -57,6 +61,10 @@ const updateInventorySchema = z
     ),
     expiryDate: z.preprocess(preprocessExpiry, z.string().datetime().optional()),
     isAvailable: z.boolean().optional(),
+    lowStockThreshold: z.preprocess(
+      (val) => (val === '' || val === null ? undefined : preprocessInt(val)),
+      z.number().int().nonnegative('Low stock threshold must be 0 or more').optional()
+    ),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field is required to update',
