@@ -6,7 +6,7 @@ interface User {
   email: string;
   name?: string | null;
   avatarUrl?: string | null;
-  role: string;
+  role: 'PHARMACY' | 'ADMIN' | 'CUSTOMER';
   isEmailVerified?: boolean;
   pharmacy?: {
     id: string;
@@ -21,8 +21,8 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (data: { email: string; password: string; rememberMe?: boolean }) => Promise<unknown>;
-  register: (data: { name: string; email: string; password: string }) => Promise<unknown>;
-  googleAuth: (idToken: string) => Promise<unknown>;
+  register: (data: { name: string; email: string; password: string; role?: 'PHARMACY' | 'CUSTOMER' }) => Promise<unknown>;
+  googleAuth: (idToken: string, role?: 'PHARMACY' | 'CUSTOMER') => Promise<unknown>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -62,14 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return response;
   };
 
-  const register = async (data: { name: string; email: string; password: string }) => {
+  const register = async (data: { name: string; email: string; password: string; role?: 'PHARMACY' | 'CUSTOMER' }) => {
     // Register does NOT set user — user must verify email, then login
     const response = await authService.register(data);
     return response;
   };
 
-  const googleAuth = async (idToken: string) => {
-    const response = await authService.googleAuth(idToken);
+  const googleAuth = async (idToken: string, role?: 'PHARMACY' | 'CUSTOMER') => {
+    const response = await authService.googleAuth(idToken, role);
     setUser(response?.data?.user ?? null);
     return response;
   };

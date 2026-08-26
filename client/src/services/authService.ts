@@ -5,11 +5,11 @@ import api from './api';
  */
 const authService = {
   /**
-   * Register a new pharmacy user.
+   * Register a new user (PHARMACY or CUSTOMER).
    * Does NOT store an access token (user must verify email first).
    */
-  async register(data: { name: string; email: string; password: string }) {
-    const response = await api.post('/auth/register', { ...data, role: 'PHARMACY' });
+  async register(data: { name: string; email: string; password: string; role?: 'PHARMACY' | 'CUSTOMER' }) {
+    const response = await api.post('/auth/register', { ...data, role: data.role || 'PHARMACY' });
     // No token stored — user must verify email, then login
     return response.data;
   },
@@ -28,9 +28,10 @@ const authService = {
 
   /**
    * Authenticate via Google ID token.
+   * Role is only used for NEW users; existing users retain their DB role.
    */
-  async googleAuth(idToken: string) {
-    const response = await api.post('/auth/google', { idToken });
+  async googleAuth(idToken: string, role: 'PHARMACY' | 'CUSTOMER' = 'PHARMACY') {
+    const response = await api.post('/auth/google', { idToken, role });
     const { accessToken } = response.data.data;
     if (accessToken) {
       localStorage.setItem('accessToken', accessToken);

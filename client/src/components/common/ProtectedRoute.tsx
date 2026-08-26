@@ -32,7 +32,9 @@ export default function ProtectedRoute({ children, roles = [] }: ProtectedRouteP
 
   // Check role if specified
   if (roles.length > 0 && user && !roles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    // CUSTOMER users get redirected to /search, others to /dashboard
+    const fallback = user.role === 'CUSTOMER' ? '/search' : '/dashboard';
+    return <Navigate to={fallback} replace />;
   }
 
   return children;

@@ -26,6 +26,7 @@ export default function Login() {
   // Redirect helper based on user role and pharmacy status
   const getRedirectPath = (user: Record<string, unknown>) => {
     if (user?.role === 'ADMIN') return '/admin';
+    if (user?.role === 'CUSTOMER') return '/search';
 
     const from = location.state?.from?.pathname;
     if (from && from !== '/login' && from !== '/register') return from;

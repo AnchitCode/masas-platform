@@ -5,6 +5,13 @@
  * may include partial data depending on the endpoint.
  */
 
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data: T;
+  error?: string;
+}
+
 /* ─── Medicine (global catalog) ─────────────────────── */
 export interface Medicine {
   id: string;
