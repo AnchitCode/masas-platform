@@ -57,10 +57,11 @@ describe('Notification Service', () => {
     it('returns notifications ordered by most recent first', async () => {
       const { user } = await createTestUser();
 
-      // Create 3 notifications with slight time gaps
-      const n1 = await createTestNotification(user.id, { title: 'First' });
-      const n2 = await createTestNotification(user.id, { title: 'Second' });
-      const n3 = await createTestNotification(user.id, { title: 'Third' });
+      // Create 3 notifications with explicit time gaps for deterministic ordering
+      const now = Date.now();
+      const n1 = await createTestNotification(user.id, { title: 'First', createdAt: new Date(now - 2000) });
+      const n2 = await createTestNotification(user.id, { title: 'Second', createdAt: new Date(now - 1000) });
+      const n3 = await createTestNotification(user.id, { title: 'Third', createdAt: new Date(now) });
 
       const result = await notificationService.listByUser({ userId: user.id });
 
