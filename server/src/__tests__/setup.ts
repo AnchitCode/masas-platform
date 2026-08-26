@@ -53,6 +53,7 @@ interface TestNotificationOverrides {
   message?: string;
   data?: Prisma.InputJsonValue | null;
   isRead?: boolean;
+  createdAt?: Date;
 }
 
 // ─── Database lifecycle ───────────────────────────────────────
@@ -236,6 +237,7 @@ async function createTestNotification(userId: string, overrides: TestNotificatio
       message: overrides.message || 'This is a test notification.',
       data: overrides.data === null || overrides.data === undefined ? undefined : overrides.data,
       isRead: overrides.isRead ?? false,
+      ...(overrides.createdAt ? { createdAt: overrides.createdAt } : {}),
     },
   });
 

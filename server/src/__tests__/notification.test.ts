@@ -338,9 +338,10 @@ describe('Notification API Endpoints', () => {
   describe('GET /api/v1/notifications', () => {
     it('returns paginated notifications for authenticated user', async () => {
       const { user, accessToken } = await createTestUser();
-      await createTestNotification(user.id, { title: 'Notif 1' });
-      await createTestNotification(user.id, { title: 'Notif 2' });
-      await createTestNotification(user.id, { title: 'Notif 3' });
+      const now = Date.now();
+      await createTestNotification(user.id, { title: 'Notif 1', createdAt: new Date(now - 2000) });
+      await createTestNotification(user.id, { title: 'Notif 2', createdAt: new Date(now - 1000) });
+      await createTestNotification(user.id, { title: 'Notif 3', createdAt: new Date(now) });
 
       const res = await request(app)
         .get('/api/v1/notifications')
