@@ -14,6 +14,7 @@ import Dashboard from './pages/dashboard/Dashboard';
 import Profile from './pages/dashboard/Profile';
 import Inventory from './pages/dashboard/Inventory';
 import Search from './pages/Search';
+import SavedSearches from './pages/SavedSearches';
 import PublicPharmacy from './pages/PublicPharmacy';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -36,6 +37,14 @@ function App() {
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/search" element={<Search />} />
+          <Route 
+            path="/saved-searches" 
+            element={
+              <ProtectedRoute roles={['CUSTOMER']}>
+                <SavedSearches />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/pharmacy/:id" element={<PublicPharmacy />} />
 
           <Route 

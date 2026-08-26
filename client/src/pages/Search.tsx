@@ -1,9 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { MapPin, Search as SearchIcon, LocateFixed, ScanSearch, Filter } from 'lucide-react';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { MapPin, Search as SearchIcon, LocateFixed, ScanSearch, Filter, Bell } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import searchService from '../services/searchService';
+import savedSearchService from '../services/savedSearchService';
 import PharmacyCard from '../components/search/PharmacyCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import AlertBanner from '../components/ui/AlertBanner';
@@ -34,6 +36,12 @@ export default function Search() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [savingAlert, setSavingAlert] = useState(false);
+  const [saveAlertSuccess, setSaveAlertSuccess] = useState(false);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -144,6 +152,41 @@ export default function Search() {
     }
   };
 
+  const handleSaveSearch = async () => {
+    if (!isAuthenticated) {
+      // Redirect to login with returnUrl
+      navigate(`/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`);
+      return;
+    }
+    
+    if (user?.role !== 'CUSTOMER') {
+      setSearchError('Only customers can set availability alerts.');
+      return;
+    }
+
+    const q = debouncedQuery.trim();
+    if (!coords || q.length < 1) return;
+
+    setSavingAlert(true);
+    setSearchError('');
+    setSaveAlertSuccess(false);
+
+    try {
+      await savedSearchService.create({
+        query: q,
+        latitude: coords.lat,
+        longitude: coords.lng,
+        radiusKm: DEFAULT_RADIUS_KM,
+      });
+      setSaveAlertSuccess(true);
+      setTimeout(() => setSaveAlertSuccess(false), 5000); // Hide success after 5s
+    } catch (err: any) {
+      setSearchError(err?.response?.data?.message || 'Failed to save alert. Try again.');
+    } finally {
+      setSavingAlert(false);
+    }
+  };
+
   const hasMore = results.length > 0 && results.length < total;
 
   return (
@@ -208,11 +251,30 @@ export default function Search() {
             ) : null}
 
             {!searchLoading && coords && debouncedQuery.trim().length >= 1 && results.length === 0 && !searchError ? (
-              <EmptyState
-                icon={ScanSearch}
-                title="No matches in this area"
-                description="Try a different spelling or generic name. A wider search radius feature is coming soon."
-              />
+              <div className="flex flex-col items-center gap-4">
+                <EmptyState
+                  icon={ScanSearch}
+                  title="No matches in this area"
+                  description="Try a different spelling or generic name. A wider search radius feature is coming soon."
+                />
+                
+                <div className="w-full max-w-sm">
+                  {saveAlertSuccess ? (
+                    <AlertBanner variant="success" className="mb-2">
+                      Alert saved! You'll be notified when this medicine is available near you.
+                    </AlertBanner>
+                  ) : null}
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    leftIcon={Bell}
+                    onClick={handleSaveSearch}
+                    isLoading={savingAlert}
+                  >
+                    Alert me when available
+                  </Button>
+                </div>
+              </div>
             ) : null}
 
             {!searchLoading && results.length > 0 ? (
