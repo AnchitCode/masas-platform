@@ -9,7 +9,7 @@ export { UserRole, PharmacyStatus } from '@prisma/client';
 
 export interface AccessTokenPayload {
   userId: string;
-  role: 'PHARMACY' | 'ADMIN';
+  role: 'PHARMACY' | 'ADMIN' | 'CUSTOMER';
 }
 
 export interface RefreshTokenPayload {
@@ -26,7 +26,7 @@ export interface RefreshTokenPayload {
 export interface AuthenticatedRequest extends Request {
   user: {
     userId: string;
-    role: 'PHARMACY' | 'ADMIN';
+    role: 'PHARMACY' | 'ADMIN' | 'CUSTOMER';
   };
 }
 
@@ -85,6 +85,8 @@ export interface EnvConfig {
   SMTP_FROM: string;
   RATE_LIMIT_WINDOW_MS: number;
   RATE_LIMIT_MAX: number;
+  REDIS_URL: string;
+  ALERT_CRON_PATTERN: string;
   isDev: boolean;
   isProd: boolean;
 }

@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
-import { Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { Mail, Lock, ArrowRight, User, Search, Building2 } from 'lucide-react';
 import AlertBanner from '../components/ui/AlertBanner';
 import { FormField, Input } from '../components/ui/forms';
 import { Button } from '../components/ui/Button';
@@ -10,10 +10,13 @@ import { getErrorMessage } from '../lib/utils';
 import axios from 'axios';
 import logoUrl from '../assets/logo.jpg';
 
+type RegistrationRole = 'PHARMACY' | 'CUSTOMER';
+
 export default function Register() {
   const { register, googleAuth } = useAuth();
   const navigate = useNavigate();
 
+  const [selectedRole, setSelectedRole] = useState<RegistrationRole>('CUSTOMER');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -34,13 +37,14 @@ export default function Register() {
     setError('');
     setGoogleLoading(true);
     try {
-      const response = await googleAuth(idToken);
-      const res = response as { data?: { isNewUser?: boolean } };
-      if (res?.data?.isNewUser) {
-        // New user via Google → go to dashboard (profile setup flow)
-        navigate('/dashboard', { replace: true });
+      const response = await googleAuth(idToken, selectedRole);
+      const res = response as { data?: { isNewUser?: boolean; user?: { role?: string } } };
+      const userRole = res?.data?.user?.role;
+      if (userRole === 'CUSTOMER') {
+        navigate('/search', { replace: true });
+      } else if (userRole === 'ADMIN') {
+        navigate('/admin', { replace: true });
       } else {
-        // Existing user → go to dashboard
         navigate('/dashboard', { replace: true });
       }
     } catch (err: unknown) {
@@ -81,6 +85,7 @@ export default function Register() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        role: selectedRole,
       });
       // Redirect to account-created page (NOT dashboard — email verification required)
       navigate(`/account-created?email=${encodeURIComponent(formData.email)}`, { replace: true });
@@ -98,6 +103,11 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  const roleOptions: { value: RegistrationRole; label: string; icon: typeof Search; description: string }[] = [
+    { value: 'CUSTOMER', label: 'Patient', icon: Search, description: 'Search for medicines' },
+    { value: 'PHARMACY', label: 'Pharmacy', icon: Building2, description: 'Manage your inventory' },
+  ];
 
   return (
     <div className="flex flex-col items-center justify-center page-bg" style={{ minHeight: 'calc(100vh - var(--navbar-height))', padding: '48px 16px' }}>
@@ -124,6 +134,44 @@ export default function Register() {
               </AlertBanner>
             </div>
           )}
+
+          {/* Role Selector */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>
+              I am a
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {roleOptions.map((opt) => {
+                const isActive = selectedRole === opt.value;
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    id={`role-${opt.value.toLowerCase()}`}
+                    onClick={() => setSelectedRole(opt.value)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '14px 12px',
+                      borderRadius: 10,
+                      border: `2px solid ${isActive ? 'var(--green-600)' : 'var(--border)'}`,
+                      background: isActive ? 'var(--green-50, rgba(16,185,129,0.06))' : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      color: isActive ? 'var(--green-600)' : 'var(--muted)',
+                    }}
+                  >
+                    <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
+                    <span style={{ fontSize: 14, fontWeight: isActive ? 600 : 500 }}>{opt.label}</span>
+                    <span style={{ fontSize: 11, opacity: 0.75 }}>{opt.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Google Sign-In Button */}
           <div
@@ -154,7 +202,7 @@ export default function Register() {
                 id="name"
                 type="text"
                 leftIcon={User}
-                placeholder="Anchit Gupta"
+                placeholder={selectedRole === 'CUSTOMER' ? 'John Doe' : 'Anchit Gupta'}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
@@ -167,7 +215,7 @@ export default function Register() {
                 id="email"
                 type="email"
                 leftIcon={Mail}
-                placeholder="pharmacy@example.com"
+                placeholder={selectedRole === 'CUSTOMER' ? 'patient@example.com' : 'pharmacy@example.com'}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required

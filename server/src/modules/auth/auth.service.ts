@@ -10,8 +10,10 @@ import {
   verifyRefreshToken,
 } from '../../utils/jwt.js';
 import { generateSecureToken, hashToken } from '../../utils/tokenUtils.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js';
+import { emailQueue } from '../../jobs/queues.js';
+import logger from '../../utils/logger.js';
 import { logAuthEvent } from '../../utils/authAudit.js';
+import { eventBus } from '../../lib/eventBus.js';
 import type { RegisterInput, LoginInput } from './auth.validation.js';
 
 const SALT_ROUNDS = 12;
@@ -30,11 +32,17 @@ const authService = {
   // ─── Register ────────────────────────────────────────────────
 
   /**
-   * Register a new PHARMACY user.
+   * Register a new PHARMACY or CUSTOMER user.
    * Creates user with isEmailVerified = false, sends verification email.
    * Does NOT return JWT tokens — user must verify email first.
    */
-  async register({ name, email, password }: RegisterInput, req: Request) {
+  async register({ name, email, password, role }: RegisterInput, req: Request) {
+    // ADMIN registration is ALWAYS blocked — admins are created via seed only
+    // Defense-in-depth: Zod rejects ADMIN at validation, but we guard here too.
+    if ((role as string) === 'ADMIN') {
+      throw ApiError.forbidden('Admin accounts cannot be created through registration');
+    }
+
     // Check if user already exists
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -44,13 +52,13 @@ const authService = {
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create user (always PHARMACY, always unverified)
+    // Create user with the validated role (PHARMACY or CUSTOMER)
     const user = await prisma.user.create({
       data: {
         email,
         name,
         passwordHash,
-        role: 'PHARMACY',
+        role,
         isEmailVerified: false,
       },
       select: { id: true, email: true, name: true, role: true, createdAt: true },
@@ -68,7 +76,13 @@ const authService = {
     // Send verification email
     const verifyUrl = `${env.CLIENT_URL}/verify-email?token=${rawToken}`;
     // Fire-and-forget — don't block registration on email failure
-    sendVerificationEmail(email, name || '', verifyUrl).catch(() => {});
+    emailQueue.add('verification-email', {
+      to: email,
+      name: name || '',
+      verifyUrl,
+    }).catch((err: unknown) => {
+      logger.error('Failed to enqueue verification email', { email, error: String(err) });
+    });
 
     // Audit log
     void logAuthEvent({ userId: user.id, action: 'REGISTER', req });
@@ -85,7 +99,7 @@ const authService = {
    * - New user → create with isEmailVerified = true
    * - Admin accounts → blocked
    */
-  async googleAuth(idToken: string, req: Request) {
+  async googleAuth(idToken: string, requestedRole: 'PHARMACY' | 'CUSTOMER' = 'PHARMACY', req: Request) {
     // Verify the Google ID token
     const ticket = await googleClient.verifyIdToken({
       idToken,
@@ -153,7 +167,7 @@ const authService = {
 
         void logAuthEvent({ userId: user.id, action: 'GOOGLE_LINK', req });
       } else {
-        // New user — create
+        // New user — create with the requested role (PHARMACY or CUSTOMER)
         user = await prisma.user.create({
           data: {
             email: email.toLowerCase(),
@@ -161,7 +175,7 @@ const authService = {
             avatarUrl: picture || null,
             googleId,
             isEmailVerified: true, // Google verified the email
-            role: 'PHARMACY',
+            role: requestedRole,
             // passwordHash stays null — Google-only user
           },
           select: {
@@ -301,7 +315,13 @@ const authService = {
 
       // Send reset email
       const resetUrl = `${env.CLIENT_URL}/reset-password?token=${rawToken}`;
-      sendPasswordResetEmail(user.email, user.name || '', resetUrl).catch(() => {});
+      emailQueue.add('password-reset-email', {
+        to: user.email,
+        name: user.name || '',
+        resetUrl,
+      }).catch((err: unknown) => {
+        logger.error('Failed to enqueue password reset email', { email: user.email, error: String(err) });
+      });
 
       void logAuthEvent({ userId: user.id, action: 'PASSWORD_RESET_REQUESTED', req });
     }
@@ -357,6 +377,9 @@ const authService = {
         data: { revokedAt: new Date() },
       }),
     ]);
+
+    // Force disconnect all Socket.io connections for this user
+    eventBus.emit('user.session_invalidated', { userId: resetToken.userId });
 
     void logAuthEvent({
       userId: resetToken.userId,
@@ -447,7 +470,13 @@ const authService = {
 
       // Send email
       const verifyUrl = `${env.CLIENT_URL}/verify-email?token=${rawToken}`;
-      sendVerificationEmail(user.email, user.name || '', verifyUrl).catch(() => {});
+      emailQueue.add('verification-email', {
+        to: user.email,
+        name: user.name || '',
+        verifyUrl,
+      }).catch((err: unknown) => {
+        logger.error('Failed to enqueue verification email', { email: user.email, error: String(err) });
+      });
 
       void logAuthEvent({ userId: user.id, action: 'VERIFICATION_RESENT', req });
     }

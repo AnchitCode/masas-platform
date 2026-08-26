@@ -3,16 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import type { EnvConfig } from '../types/index.js';
 
-// Load the correct .env file based on NODE_ENV.
-// In test mode, use `override: true` because Prisma Client's built-in
-// dotenv may have already loaded production .env values. We must ensure
-// .env.test values take precedence.
-const isTest = process.env.NODE_ENV === 'test';
-const envFile = isTest ? '.env.test' : '.env';
-const envPath = path.resolve(process.cwd(), envFile);
+// Load .env only in non-test environments, or let it load as a fallback without overriding.
+// In test mode, `env-setup.ts` has ALREADY run and loaded `.env.test`.
+// We do not want to override it here.
+const envPath = path.resolve(process.cwd(), '.env');
 
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath, override: isTest });
+if (fs.existsSync(envPath) && process.env.NODE_ENV !== 'test') {
+  dotenv.config({ path: envPath });
 }
 
 /**
@@ -62,6 +59,9 @@ const env: EnvConfig = {
 
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS!, 10) || 60000,
   RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX!, 10) || 100,
+
+  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+  ALERT_CRON_PATTERN: process.env.ALERT_CRON_PATTERN || '*/30 * * * *',
 
   isDev: (process.env.NODE_ENV || 'development') === 'development',
   isProd: process.env.NODE_ENV === 'production',

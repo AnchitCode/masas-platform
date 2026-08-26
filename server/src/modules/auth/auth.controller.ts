@@ -80,6 +80,7 @@ const authController = {
     try {
       const { user, accessToken, refreshToken, isNewUser } = await authService.googleAuth(
         req.body.idToken,
+        req.body.role,
         req,
       );
 

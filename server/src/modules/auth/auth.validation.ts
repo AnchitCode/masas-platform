@@ -5,7 +5,7 @@ import { z } from 'zod';
  * Zod v4 uses `error` (string) instead of `required_error`.
  */
 
-// ─── Registration (public — PHARMACY only) ───────────────────────
+// ─── Registration (public — PHARMACY or CUSTOMER) ────────────────
 
 const registerSchema = z.object({
   name: z
@@ -22,9 +22,10 @@ const registerSchema = z.object({
     .string({ error: 'Password is required' })
     .min(8, 'Password must be at least 8 characters')
     .max(128, 'Password must be at most 128 characters'),
-  // ADMIN removed — admins are created ONLY via seed script
+  // Only PHARMACY and CUSTOMER allowed via public registration.
+  // ADMIN accounts are created ONLY via seed script.
   role: z
-    .literal('PHARMACY')
+    .enum(['PHARMACY', 'CUSTOMER'])
     .default('PHARMACY'),
 });
 
@@ -50,6 +51,11 @@ const googleAuthSchema = z.object({
   idToken: z
     .string({ error: 'Google ID token is required' })
     .min(1, 'Google ID token is required'),
+  // Only used for NEW users. Existing users always keep their DB role.
+  role: z
+    .enum(['PHARMACY', 'CUSTOMER'])
+    .optional()
+    .default('PHARMACY'),
 });
 
 // ─── Forgot Password ────────────────────────────────────────────

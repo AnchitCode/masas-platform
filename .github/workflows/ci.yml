@@ -69,8 +69,19 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DATABASE_URL: postgresql://masas_test:masas_test_password@localhost:5432/masas_test
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-test-access-secret-minimum-32-characters-long
       JWT_REFRESH_SECRET: ci-test-refresh-secret-minimum-32-characters-long
       NODE_ENV: test
@@ -78,6 +89,7 @@ jobs:
       DATABASE_BRANCH: masas-test
       ALLOW_TEST_DB_RESET: 'true'
       SAFE_TEST_DATABASE_HOST: localhost
+      SAFE_TEST_DATABASE_NAME: masas_test
       PRODUCTION_DATABASE_HOST: ${{ secrets.PRODUCTION_DATABASE_HOST }}
       # Auth placeholders — not real secrets, just enough to pass env validation
       GOOGLE_CLIENT_ID: ci-placeholder-google-client-id
