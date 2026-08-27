@@ -1,4 +1,4 @@
-import { MapPin, Navigation, Store, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { MapPin, Navigation, Store, CheckCircle, AlertTriangle, XCircle, Sparkles } from 'lucide-react';
 import StatusBadge from '../ui/StatusBadge';
 import type { Pharmacy, Medicine, InventoryItem } from '../../types';
 import { Card, CardContent } from '../ui/Card';
@@ -22,6 +22,7 @@ interface PharmacyCardProps {
   distanceMeters: number;
   medicine?: Medicine;
   inventory?: InventoryItem;
+  matchType?: 'exact' | 'partial' | 'generic' | 'semantic';
   className?: string;
 }
 
@@ -30,6 +31,7 @@ export default function PharmacyCard({
   distanceMeters,
   medicine,
   inventory,
+  matchType,
   className = '',
 }: PharmacyCardProps) {
   if (!pharmacy) return null;
@@ -47,6 +49,12 @@ export default function PharmacyCard({
               <h3 className="text-lg font-bold text-text capitalize">{medicine.name}</h3>
               <p className="text-sm text-muted">
                 {[medicine.genericName, medicine.dosageForm].filter(Boolean).join(' · ')}
+                {matchType === 'semantic' ? (
+                  <span className="inline-flex items-center gap-1 ml-2 text-xs text-violet-600" data-testid="similar-match-label">
+                    <Sparkles className="w-3 h-3" />
+                    Similar match
+                  </span>
+                ) : null}
               </p>
             </div>
             {stockInfo && (

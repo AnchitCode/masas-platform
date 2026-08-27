@@ -63,6 +63,16 @@ const env: EnvConfig = {
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   ALERT_CRON_PATTERN: process.env.ALERT_CRON_PATTERN || '*/30 * * * *',
 
+  // ── AI Configuration (Phase 9) ───────────────────────────────
+  // All AI vars have safe defaults. AI is disabled by default.
+  // Server starts and runs normally without Ollama installed.
+  AI_ENABLED: process.env.AI_ENABLED === 'true',
+  OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+  AI_EMBEDDING_MODEL: process.env.AI_EMBEDDING_MODEL || 'nomic-embed-text',
+  AI_LLM_MODEL: process.env.AI_LLM_MODEL || 'phi3.5:3.8b-mini-instruct-q4_K_M',
+  AI_EMBEDDING_PROVIDER: process.env.AI_EMBEDDING_PROVIDER || 'ollama',
+  AI_LLM_PROVIDER: process.env.AI_LLM_PROVIDER || 'ollama',
+
   isDev: (process.env.NODE_ENV || 'development') === 'development',
   isProd: process.env.NODE_ENV === 'production',
 };

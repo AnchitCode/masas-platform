@@ -41,6 +41,12 @@ const addInventory = async (pharmacyId: string, data: AddInventoryInput) => {
         dosageForm,
       },
     });
+
+    // Phase 9.1c: Trigger background embedding generation for the new medicine
+    eventBus.emit('catalog.created', {
+      medicineId: medicine.id,
+      name: medicine.name,
+    });
   }
 
   // 2. Check if pharmacy already has this medicine in inventory

@@ -14,7 +14,7 @@ import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Input } from '../components/ui/forms';
 import { getErrorMessage, isCancelledRequest } from '../lib/utils';
-import type { SearchResultRow } from '../types';
+import type { SearchResultRow, SearchMeta } from '../types';
 
 const DEFAULT_RADIUS_KM = 12;
 const PAGE_SIZE = 20;
@@ -36,6 +36,7 @@ export default function Search() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [searchMeta, setSearchMeta] = useState<SearchMeta | null>(null);
 
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -111,6 +112,7 @@ export default function Search() {
         const data = body?.data;
         setResults(data?.results ?? []);
         setTotal(typeof data?.total === 'number' ? data.total : 0);
+        setSearchMeta(data?.meta ?? null);
         setPage(1);
       } catch (err: unknown) {
         if (ac.signal.aborted || isCancelledRequest(err)) return;
@@ -118,6 +120,7 @@ export default function Search() {
 
         setResults([]);
         setTotal(0);
+        setSearchMeta(null);
       } finally {
         if (!ac.signal.aborted) setSearchLoading(false);
       }
@@ -199,7 +202,7 @@ export default function Search() {
               id="medicine-search"
               type="search"
               className="pl-9 bg-slate-50 w-full"
-              placeholder="Search medicine (e.g. paracetamol)"
+              placeholder="Search medicine — e.g. paracetamol, dard ki dawa"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -279,10 +282,17 @@ export default function Search() {
 
             {!searchLoading && results.length > 0 ? (
               <>
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm font-medium text-text">
-                    {total === 1 ? '1 result found' : `${results.length} shown · ${total} total matches`}
-                  </p>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-sm font-medium text-text">
+                      {total === 1 ? '1 result found' : `${results.length} shown · ${total} total matches`}
+                    </p>
+                  </div>
+                  {searchMeta?.normalizedQuery ? (
+                    <p className="text-xs text-muted" data-testid="normalized-query-hint">
+                      Showing results for <span className="font-medium text-text">{searchMeta.normalizedQuery}</span>
+                    </p>
+                  ) : null}
                 </div>
                 <ul className="flex flex-col gap-4">
                   {results.map((row) => (
@@ -292,6 +302,7 @@ export default function Search() {
                         distanceMeters={row.distanceMeters}
                         medicine={row.medicine}
                         inventory={row.inventory}
+                        matchType={row.matchType}
                         className="shadow-sm border-border"
                       />
                     </li>

@@ -63,6 +63,15 @@ export interface SearchResultRow {
   medicine: Medicine;
   inventory: InventoryItem;
   distanceMeters: number;
+  /** How this result was matched (Phase 9.1e hybrid search) */
+  matchType?: 'exact' | 'partial' | 'generic' | 'semantic';
+}
+
+/* ─── Search response metadata ──────────────────────── */
+export interface SearchMeta {
+  aiUsed?: boolean;
+  /** Normalized query if Hinglish was translated (e.g. "dard ki dawa" → "pain medicine") */
+  normalizedQuery?: string;
 }
 
 /* ─── Admin stats ───────────────────────────────────── */

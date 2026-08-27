@@ -18,6 +18,7 @@ import { createRedisConnection } from '../config/redis.js';
 // Each Queue gets its own connection (BullMQ best practice).
 const emailQueueConnection = createRedisConnection('emailQueue');
 const alertQueueConnection = createRedisConnection('alertQueue');
+const embeddingQueueConnection = createRedisConnection('embeddingQueue');
 
 // ─── Email Queue ─────────────────────────────────────────────────
 // Handles all email sending: verification, password reset, notification alerts.
@@ -46,10 +47,25 @@ export const alertQueue = new Queue('alerts', {
   },
 });
 
+// ─── Embedding Queue (Phase 9.1c) ───────────────────────────────
+// Handles background embedding generation for medicine catalog entries.
+// Jobs are queued when medicines are created/updated, and for bulk backfill.
+export const embeddingQueue = new Queue('embeddings', {
+  connection: embeddingQueueConnection,
+  prefix: 'masas',
+  defaultJobOptions: {
+    attempts: 5,                       // Ollama may be temporarily unavailable
+    backoff: { type: 'exponential', delay: 5000 },
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 200 },
+  },
+});
+
 // ─── Queue Names (exported constants for workers) ────────────────
 export const QUEUE_NAMES = {
   EMAIL: 'email',
   ALERTS: 'alerts',
+  EMBEDDINGS: 'embeddings',
 } as const;
 
 export const QUEUE_PREFIX = 'masas';

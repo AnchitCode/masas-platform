@@ -13,7 +13,7 @@ import { generateAccessToken, generateRefreshToken } from '../utils/jwt.js';
 import { generateSecureToken, hashToken } from '../utils/tokenUtils.js';
 import { assertTestDatabaseSafety } from '../utils/dbSafety.js';
 import { redisClient } from '../config/redis.js';
-import { emailQueue, alertQueue } from '../jobs/queues.js';
+import { emailQueue, alertQueue, embeddingQueue } from '../jobs/queues.js';
 
 // ─── Step 1: Central safety check ────────────────────────────
 
@@ -86,6 +86,7 @@ afterAll(async () => {
   try {
     await emailQueue.close();
     await alertQueue.close();
+    await embeddingQueue.close();
     await redisClient.quit();
   } catch {
     // Redis may not be available — don't fail teardown

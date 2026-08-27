@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [postgis]
+  extensions = [postgis, vector]
 }
 
 // ==================== ENUMS ====================
@@ -158,6 +158,16 @@ model MedicineCatalog {
   dosageForm  String?  @map("dosage_form")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+
+  /// AI embedding vector (Phase 9) — 768 dimensions for nomic-embed-text.
+  /// Nullable: medicines without embeddings still function via keyword search.
+  /// Managed via raw SQL ($queryRaw) since Prisma doesn't natively support vector types.
+  embedding     Unsupported("vector(768)")?
+
+  /// SHA-256 hash of the canonical text used to generate the embedding.
+  /// Used for stale embedding detection: when catalog fields change, the hash
+  /// changes, marking the embedding as stale without re-running inference.
+  embeddingHash String? @map("embedding_hash")
 
   // Relations
   inventory PharmacyInventory[]

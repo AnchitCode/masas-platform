@@ -93,6 +93,22 @@ export interface EventMap {
   'user.session_invalidated': {
     userId: string;
   };
+
+  // ── Catalog Events (Phase 9.1c) ────────────────────────────────
+  // These events trigger background embedding generation.
+  // They are fire-and-forget — catalog CRUD does NOT wait for embedding.
+
+  /** Emitted when a new medicine is created in the catalog. */
+  'catalog.created': {
+    medicineId: string;
+    name: string;
+  };
+
+  /** Emitted when a medicine's search-relevant fields are updated. */
+  'catalog.updated': {
+    medicineId: string;
+    name: string;
+  };
 }
 
 // ─── Typed Event Bus ─────────────────────────────────────────────

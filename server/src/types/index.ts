@@ -87,6 +87,15 @@ export interface EnvConfig {
   RATE_LIMIT_MAX: number;
   REDIS_URL: string;
   ALERT_CRON_PATTERN: string;
+
+  // ── AI Configuration (Phase 9) ───────────────────────────────
+  AI_ENABLED: boolean;
+  OLLAMA_BASE_URL: string;
+  AI_EMBEDDING_MODEL: string;
+  AI_LLM_MODEL: string;
+  AI_EMBEDDING_PROVIDER: string;
+  AI_LLM_PROVIDER: string;
+
   isDev: boolean;
   isProd: boolean;
 }

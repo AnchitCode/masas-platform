@@ -115,6 +115,17 @@ app.use('/api/v1/notifications', notificationRoutes);
 import savedSearchRoutes from './modules/search/savedSearch.routes.js';
 app.use('/api/v1/saved-searches', savedSearchRoutes);
 
+// AI health check (Phase 9.0)
+import { getAIHealth } from './ai/index.js';
+app.get('/api/v1/ai/health', async (_req, res) => {
+  const health = await getAIHealth();
+  res.status(200).json({
+    success: true,
+    message: 'AI health check',
+    data: health,
+  });
+});
+
 // --------------- Error Handling ---------------
 
 // 404 handler for unmatched routes
