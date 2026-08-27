@@ -3,6 +3,29 @@ import { vi } from 'vitest';
 import app from '../app.js';
 import { createTestUser, createTestPharmacy, createTestMedicine, createTestInventory } from './setup.js';
 import { findSemanticCandidates } from '../ai/search/semanticSearch.js';
+import type { SemanticSearchResult, SemanticCandidate } from '../ai/search/semanticSearch.js';
+
+/** Shorthand: only id, name, score required; rest defaults to null. */
+type CandidateInput = Pick<SemanticCandidate, 'id' | 'name' | 'score'>;
+
+/** Build a complete SemanticSearchResult with safe defaults. */
+function mockSemanticResult(
+  overrides: Omit<Partial<SemanticSearchResult>, 'candidates'> & { candidates?: CandidateInput[] } = {},
+): SemanticSearchResult {
+  const candidates: SemanticCandidate[] = (overrides.candidates ?? []).map((c) => ({
+    genericName: null,
+    category: null,
+    dosageForm: null,
+    ...c,
+  }));
+  return {
+    normalizedQuery: overrides.normalizedQuery ?? '',
+    latencyMs: overrides.latencyMs ?? 0,
+    aiUsed: overrides.aiUsed ?? false,
+    error: overrides.error,
+    candidates,
+  };
+}
 
 vi.mock('../ai/search/semanticSearch.js', () => ({
   findSemanticCandidates: vi.fn(),
@@ -22,7 +45,7 @@ interface SeedOptions {
 describe('Search Module', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(findSemanticCandidates).mockResolvedValue({ candidates: [], aiUsed: false, normalizedQuery: '' } as any);
+    vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult());
   });
 
   async function seedPharmacyWithInventory({ lat, lng, medicineName = 'paracetamol 500mg', genericName = 'acetaminophen', quantity = 100, price = 25, status = 'VERIFIED', isAvailable = true }: SeedOptions) {
@@ -51,19 +74,19 @@ describe('Search Module', () => {
   describe('Hybrid Search (Phase 9.1e)', () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      vi.mocked(findSemanticCandidates).mockResolvedValue({ candidates: [], aiUsed: false, normalizedQuery: '' } as any);
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult());
     });
 
     it('returns semantic match when keyword has no match', async () => {
       // Seed a medicine that does NOT match 'dard ki dawa' textually
       const { medicine } = await seedPharmacyWithInventory({ lat: 28.63, lng: 77.22, medicineName: 'paracetamol', genericName: 'acetaminophen' });
       // Mock semantic search to return this medicine
-      vi.mocked(findSemanticCandidates).mockResolvedValue({
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [{ id: medicine.id, name: medicine.name, score: 0.85 }],
         aiUsed: true,
         normalizedQuery: 'pain medicine',
         latencyMs: 100,
-      } as any);
+      }));
 
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'dard ki dawa', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       expect(res.status).toBe(200);
@@ -81,11 +104,11 @@ describe('Search Module', () => {
       const p2 = await seedPharmacyWithInventory({ lat: 28.64, lng: 77.23, medicineName: 'paracetamol' });
 
       // Mock semantic search returning ibuprofen for the query "paracetamol" (just to test ranking)
-      vi.mocked(findSemanticCandidates).mockResolvedValue({
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [{ id: p1.medicine.id, name: p1.medicine.name, score: 0.9 }],
         aiUsed: true,
         normalizedQuery: 'paracetamol',
-      } as any);
+      }));
 
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'paracetamol', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       expect(res.status).toBe(200);
@@ -101,11 +124,11 @@ describe('Search Module', () => {
       const p1 = await seedPharmacyWithInventory({ lat: 28.62, lng: 77.21, medicineName: 'ibuprofen' });
       const p2 = await seedPharmacyWithInventory({ lat: 28.64, lng: 77.23, medicineName: 'para advance' });
 
-      vi.mocked(findSemanticCandidates).mockResolvedValue({
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [{ id: p1.medicine.id, name: p1.medicine.name, score: 0.9 }],
         aiUsed: true,
         normalizedQuery: 'para',
-      } as any);
+      }));
 
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'para', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       expect(res.body.data.results[0].medicine.name).toBe('para advance');
@@ -116,11 +139,11 @@ describe('Search Module', () => {
       const { medicine } = await seedPharmacyWithInventory({ lat: 28.63, lng: 77.22, medicineName: 'paracetamol' });
       
       // Semantic search ALSO returns paracetamol
-      vi.mocked(findSemanticCandidates).mockResolvedValue({
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [{ id: medicine.id, name: medicine.name, score: 0.99 }],
         aiUsed: true,
         normalizedQuery: 'paracetamol',
-      } as any);
+      }));
 
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'paracetamol', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       
@@ -133,11 +156,11 @@ describe('Search Module', () => {
       await seedPharmacyWithInventory({ lat: 28.63, lng: 77.22, medicineName: 'paracetamol' });
       
       // Simulate AI failure returning empty array (as handled in semanticSearch.ts)
-      vi.mocked(findSemanticCandidates).mockResolvedValue({
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [],
         aiUsed: false,
         normalizedQuery: '',
-      } as any);
+      }));
 
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'paracetamol', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       
@@ -151,14 +174,14 @@ describe('Search Module', () => {
       const p1 = await seedPharmacyWithInventory({ lat: 28.614, lng: 77.209, medicineName: 'med-close' });
       const p2 = await seedPharmacyWithInventory({ lat: 28.620, lng: 77.209, medicineName: 'med-far' });
 
-      vi.mocked(findSemanticCandidates).mockResolvedValue({
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [
           { id: p1.medicine.id, name: p1.medicine.name, score: 0.8 },
           { id: p2.medicine.id, name: p2.medicine.name, score: 0.9 }, // Even if p2 has higher semantic score, if they map to same SQL tier, distance wins
         ],
         aiUsed: true,
         normalizedQuery: 'test',
-      } as any);
+      }));
 
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'test', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       
@@ -181,15 +204,8 @@ describe('Search Module', () => {
       }
 
       // Make items 0, 1, 2, 3, 4 all semantic matches
-      vi.mocked(findSemanticCandidates).mockResolvedValue({
-        // Return 5 candidates, which means total match is 5
-        candidates: [0,1,2,3,4].map(i => ({ id: expect.any(String), name: `item-${i}`, score: 0.8 })),
-        aiUsed: true,
-        normalizedQuery: 'test',
-      } as any);
-
-      // But we mock it poorly because we need the actual IDs. Let's just do a keyword search with a mocked semantic that does nothing
-      vi.mocked(findSemanticCandidates).mockResolvedValue({ candidates: [], aiUsed: false, normalizedQuery: '' } as any);
+      // The first mock is immediately overwritten — we fall back to keyword-only for this pagination test
+      vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult());
       
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'item-', lat: 28.6139, lng: 77.209, radiusKm: 50, page: 2, limit: 2 });
       expect(res.status).toBe(200);
