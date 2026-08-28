@@ -40,3 +40,11 @@ export { initEmbeddingBridge } from './embedding/embeddingBridge.js';
 // Semantic search (Phase 9.1d)
 export { normalizeQuery, findSemanticCandidates } from './search/index.js';
 export type { SemanticCandidate, SemanticSearchResult } from './search/index.js';
+
+// OCR (Phase 9.2a)
+export { extractText, terminateOCRWorker } from './ocr/index.js';
+export type { OCRResult } from './ocr/index.js';
+
+// Prescription extraction (Phase 9.2b + 9.2c)
+export { extractMedicineNames, matchCandidates } from './prescription/index.js';
+export type { ExtractedCandidate, ExtractionResult, CatalogMatch, MatchResult } from './prescription/index.js';

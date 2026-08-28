@@ -92,3 +92,31 @@ export interface CatalogSuggestion {
   genericName?: string | null;
   manufacturer?: string | null;
 }
+
+/* ─── Prescription scanner (Phase 9.2e) ─────────────── */
+export interface PrescriptionMatch {
+  id: string;
+  name: string;
+  genericName: string | null;
+  matchType: 'exact' | 'fuzzy' | 'semantic';
+  confidence: number;
+}
+
+export interface PrescriptionCandidate {
+  extractedName: string;
+  matches: PrescriptionMatch[];
+}
+
+export interface PrescriptionExtractionResponse {
+  ocrText: string;
+  ocrConfidence: number;
+  candidates: PrescriptionCandidate[];
+  meta: {
+    ocrLatencyMs: number;
+    llmLatencyMs: number;
+    matchLatencyMs: number;
+    totalLatencyMs: number;
+    aiUsed: boolean;
+  };
+  error?: string;
+}

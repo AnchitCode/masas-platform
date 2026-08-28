@@ -1,11 +1,12 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Search as SearchIcon, LocateFixed, ScanSearch, Filter, Bell } from 'lucide-react';
+import { MapPin, Search as SearchIcon, LocateFixed, ScanSearch, Filter, Bell, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import searchService from '../services/searchService';
 import savedSearchService from '../services/savedSearchService';
+import PrescriptionModal from '../components/prescription/PrescriptionModal';
 import PharmacyCard from '../components/search/PharmacyCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import AlertBanner from '../components/ui/AlertBanner';
@@ -43,6 +44,7 @@ export default function Search() {
   const location = useLocation();
   const [savingAlert, setSavingAlert] = useState(false);
   const [saveAlertSuccess, setSaveAlertSuccess] = useState(false);
+  const [prescriptionOpen, setPrescriptionOpen] = useState(false);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -209,6 +211,17 @@ export default function Search() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {isAuthenticated && (
+              <Button
+                type="button"
+                variant="secondary"
+                leftIcon={Camera}
+                onClick={() => setPrescriptionOpen(true)}
+                className="whitespace-nowrap"
+              >
+                Scan Rx
+              </Button>
+            )}
             <Button
               type="button"
               variant={geoState === 'ready' ? 'secondary' : 'primary'}
@@ -352,6 +365,13 @@ export default function Search() {
           </Card>
         </div>
       </div>
+
+      {/* Prescription Scanner Modal (Phase 9.2e) */}
+      <PrescriptionModal
+        isOpen={prescriptionOpen}
+        onClose={() => setPrescriptionOpen(false)}
+        onSearch={(q) => setQuery(q)}
+      />
     </div>
   );
 }

@@ -115,6 +115,10 @@ app.use('/api/v1/notifications', notificationRoutes);
 import savedSearchRoutes from './modules/search/savedSearch.routes.js';
 app.use('/api/v1/saved-searches', savedSearchRoutes);
 
+// Prescription scanner (Phase 9.2d)
+import prescriptionRoutes from './modules/prescription/prescription.routes.js';
+app.use('/api/v1/prescription', prescriptionRoutes);
+
 // AI health check (Phase 9.0)
 import { getAIHealth } from './ai/index.js';
 app.get('/api/v1/ai/health', async (_req, res) => {
