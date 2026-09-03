@@ -293,49 +293,97 @@ export default function Search() {
               </div>
             ) : null}
 
-            {!searchLoading && results.length > 0 ? (
-              <>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-sm font-medium text-text">
-                      {total === 1 ? '1 result found' : `${results.length} shown · ${total} total matches`}
-                    </p>
+            {!searchLoading && results.length > 0 ? (() => {
+              const primaryResults = results.filter(r => r.matchType !== 'semantic');
+              const semanticResults = results.filter(r => r.matchType === 'semantic');
+              const targetUnavailable = searchMeta?.target && !searchMeta.target.isAvailable;
+
+              return (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-medium text-text">
+                        {total === 1 ? '1 result found' : `${results.length} shown · ${total} total matches`}
+                      </p>
+                    </div>
+                    {searchMeta?.normalizedQuery ? (
+                      <p className="text-xs text-muted" data-testid="normalized-query-hint">
+                        Showing results for <span className="font-medium text-text">{searchMeta.normalizedQuery}</span>
+                      </p>
+                    ) : null}
                   </div>
-                  {searchMeta?.normalizedQuery ? (
-                    <p className="text-xs text-muted" data-testid="normalized-query-hint">
-                      Showing results for <span className="font-medium text-text">{searchMeta.normalizedQuery}</span>
-                    </p>
+
+                  {/* Out-of-stock warning for explicit medicine target */}
+                  {targetUnavailable ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3" data-testid="target-unavailable-banner">
+                      <span className="text-xl shrink-0">⚠️</span>
+                      <p className="text-sm font-medium text-amber-800">
+                        <span className="capitalize">{searchMeta!.target!.name}</span> is currently out of stock near you.
+                      </p>
+                    </div>
                   ) : null}
-                </div>
-                <ul className="flex flex-col gap-4">
-                  {results.map((row) => (
-                    <li key={row.inventory?.id ?? `${row.pharmacy?.id}-${row.medicine?.id}`}>
-                      <PharmacyCard
-                        pharmacy={row.pharmacy}
-                        distanceMeters={row.distanceMeters}
-                        medicine={row.medicine}
-                        inventory={row.inventory}
-                        matchType={row.matchType}
-                        className="shadow-sm border-border"
-                      />
-                    </li>
-                  ))}
-                </ul>
-                {hasMore ? (
-                  <div className="flex justify-center pt-6">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={handleLoadMore}
-                      isLoading={loadMoreLoading}
-                      className="min-w-[12rem]"
-                    >
-                      Load more results
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
+
+                  {/* Primary results (exact / partial / generic) */}
+                  {primaryResults.length > 0 ? (
+                    <ul className="flex flex-col gap-4">
+                      {primaryResults.map((row) => (
+                        <li key={row.inventory?.id ?? `${row.pharmacy?.id}-${row.medicine?.id}`}>
+                          <PharmacyCard
+                            pharmacy={row.pharmacy}
+                            distanceMeters={row.distanceMeters}
+                            medicine={row.medicine}
+                            inventory={row.inventory}
+                            matchType={row.matchType}
+                            className="shadow-sm border-border"
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  {/* Semantic results section */}
+                  {semanticResults.length > 0 ? (
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <h3 className="text-sm font-semibold text-slate-700" data-testid="similar-medicines-heading">Similar Medicines</h3>
+                        <span className="text-xs text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full font-medium">AI Suggested</span>
+                      </div>
+                      <p className="text-xs text-muted mb-4 -mt-1">
+                        Consult your doctor before taking similar medicines
+                      </p>
+                      <ul className="flex flex-col gap-4">
+                        {semanticResults.map((row) => (
+                          <li key={row.inventory?.id ?? `${row.pharmacy?.id}-${row.medicine?.id}`}>
+                            <PharmacyCard
+                              pharmacy={row.pharmacy}
+                              distanceMeters={row.distanceMeters}
+                              medicine={row.medicine}
+                              inventory={row.inventory}
+                              matchType={row.matchType}
+                              className="shadow-sm border-border"
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {hasMore ? (
+                    <div className="flex justify-center pt-6">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleLoadMore}
+                        isLoading={loadMoreLoading}
+                        className="min-w-[12rem]"
+                      >
+                        Load more results
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              );
+            })() : null}
 
             {!searchLoading && !coords ? (
               <EmptyState

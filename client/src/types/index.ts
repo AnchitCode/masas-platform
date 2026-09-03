@@ -68,10 +68,18 @@ export interface SearchResultRow {
 }
 
 /* ─── Search response metadata ──────────────────────── */
+export interface SearchTarget {
+  id: string;
+  name: string;
+  isAvailable: boolean;
+}
+
 export interface SearchMeta {
   aiUsed?: boolean;
   /** Normalized query if Hinglish was translated (e.g. "dard ki dawa" → "pain medicine") */
   normalizedQuery?: string;
+  /** Explicit catalog target if query matched a medicine name/generic */
+  target?: SearchTarget | null;
 }
 
 /* ─── Admin stats ───────────────────────────────────── */
