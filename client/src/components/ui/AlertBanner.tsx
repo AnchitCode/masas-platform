@@ -15,6 +15,7 @@ interface AlertBannerProps {
   children?: React.ReactNode;
   className?: string;
   role?: string;
+  action?: React.ReactNode;
 }
 
 export default function AlertBanner({
@@ -23,6 +24,7 @@ export default function AlertBanner({
   children,
   className = '',
   role = 'alert',
+  action,
 }: AlertBannerProps) {
   const c = config[variant] || config.info;
   const { Icon, cls } = c;
@@ -41,6 +43,11 @@ export default function AlertBanner({
           </div>
         ) : null}
       </div>
+      {action ? (
+        <div className="alert-action" style={{ flexShrink: 0, marginLeft: 12 }}>
+          {action}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -19,25 +19,38 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }: Sidebar
     await logout();
   };
 
-  const pharmacyNavGroups = [
+  interface NavItemConfig {
+    to: string;
+    icon: React.ElementType;
+    label: string;
+    end?: boolean;
+    comingSoon?: boolean;
+  }
+
+  interface NavGroupConfig {
+    label: string;
+    items: NavItemConfig[];
+  }
+
+  const pharmacyNavGroups: NavGroupConfig[] = [
     {
       label: 'Main',
       items: [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Overview', end: true },
         { to: '/dashboard/inventory', icon: Package, label: 'Inventory' },
-        { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
+        { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics', comingSoon: true },
       ],
     },
     {
       label: 'Account',
       items: [
         { to: '/dashboard/profile', icon: User, label: 'Profile' },
-        { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
+        { to: '/dashboard/settings', icon: Settings, label: 'Settings', comingSoon: true },
       ],
     },
   ];
 
-  const adminNavGroups = [
+  const adminNavGroups: NavGroupConfig[] = [
     {
       label: 'Platform',
       items: [
@@ -48,7 +61,7 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }: Sidebar
     {
       label: 'System',
       items: [
-        { to: '/admin/settings', icon: Settings, label: 'Settings' },
+        { to: '/admin/settings', icon: Settings, label: 'Settings', comingSoon: true },
       ],
     },
   ];
@@ -81,18 +94,31 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }: Sidebar
             <div key={group.label} style={{ marginBottom: 16 }}>
               <div className="sidebar-section-label">{group.label}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {group.items.map(({ to, icon: Icon, label, end }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={end}
-                    onClick={onClose}
-                    className={({ isActive }) => cn('sidebar-item', isActive && 'active')}
-                  >
-                    <Icon className="sidebar-item-icon" />
-                    {label}
-                  </NavLink>
-                ))}
+                {group.items.map((item) =>
+                  item.comingSoon ? (
+                    <div
+                      key={item.label}
+                      className="sidebar-item sidebar-item--disabled"
+                      aria-disabled="true"
+                      title={`${item.label} — Coming soon`}
+                    >
+                      <item.icon className="sidebar-item-icon" />
+                      <span>{item.label}</span>
+                      <span className="sidebar-badge-soon">Soon</span>
+                    </div>
+                  ) : (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={onClose}
+                      className={({ isActive }) => cn('sidebar-item', isActive && 'active')}
+                    >
+                      <item.icon className="sidebar-item-icon" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  )
+                )}
               </div>
             </div>
           ))}

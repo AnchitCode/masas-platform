@@ -1,5 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import pharmacyService from '../../services/pharmacyService';
 import inventoryService from '../../services/inventoryService';
 import type { Pharmacy, InventoryItem } from '../../types';
@@ -28,6 +29,7 @@ import {
 } from '../../lib/dashboardMetrics';
 import AiInsightCard from '../../components/dashboard/AiInsightCard';
 import HealthScorePanel from '../../components/dashboard/HealthScorePanel';
+import KpiTile from '../../components/ui/KpiTile';
 
 function greetingForHour() {
   const h = new Date().getHours();
@@ -36,32 +38,8 @@ function greetingForHour() {
   return 'Good evening';
 }
 
-interface KpiTileProps {
-  icon: React.ElementType;
-  label: string;
-  value: number | string;
-  hint?: string;
-  tone?: string;
-}
-
-function KpiTile({ icon: Icon, label, value, hint, tone = 'success' }: KpiTileProps) {
-  return (
-    <div className="kpi-tile">
-      <div className="kpi-header">
-        <div>
-          <p className="kpi-label">{label}</p>
-          <p className="kpi-value">{value}</p>
-        </div>
-        <span className={`kpi-icon-wrap kpi-${tone}`}>
-          <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
-        </span>
-      </div>
-      {hint && <p className="kpi-hint">{hint}</p>}
-    </div>
-  );
-}
-
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -120,7 +98,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '320px', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="dashboard-loading-wrap">
         <LoadingSpinner text="Loading your workspace…" />
       </div>
     );
@@ -128,7 +106,7 @@ export default function Dashboard() {
 
   if (!hasProfile) {
     return (
-      <div style={{ paddingBottom: '32px' }}>
+      <div className="dashboard-page-container">
         <PageHeader
           title={`${greeting}, ${greetingName}`}
           description="Set up your pharmacy profile to unlock inventory, verification, and public discovery."
@@ -138,7 +116,7 @@ export default function Dashboard() {
           title="Welcome to MASAS"
           description="Your account is ready. Complete your pharmacy profile so we can verify your business—then you can list medicines and appear in public search."
           action={
-            <Button onClick={() => (window.location.href = '/dashboard/profile')} rightIcon={ArrowRight}>
+            <Button onClick={() => navigate('/dashboard/profile')} rightIcon={ArrowRight}>
               Complete pharmacy profile
             </Button>
           }
@@ -150,16 +128,16 @@ export default function Dashboard() {
   if (!pharmacy) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '32px' }}>
+    <div className="dashboard-layout">
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="dashboard-header">
         <div>
-          <h1 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text)', marginBottom: '8px' }}>
+          <h1 className="dashboard-title">
             {greeting}, {greetingName}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--slate-700)' }}>{pharmacy.name}</span>
+          <div className="dashboard-subtitle-row">
+            <span className="dashboard-pharmacy-name">{pharmacy.name}</span>
             <StatusBadge variant={pharmacy.status === 'VERIFIED' ? 'success' : pharmacy.status === 'PENDING' ? 'warning' : 'danger'}>
               {pharmacy.status}
             </StatusBadge>
@@ -168,7 +146,7 @@ export default function Dashboard() {
         
         {pharmacy.status === 'VERIFIED' && (
           <Button
-            onClick={() => (window.location.href = '/dashboard/inventory')}
+            onClick={() => navigate('/dashboard/inventory')}
             leftIcon={Plus}
           >
             Add medicine
@@ -179,13 +157,13 @@ export default function Dashboard() {
       {/* Pending Banner */}
       {pharmacy.status === 'PENDING' && (
         <div className="dash-banner dash-banner-warning">
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+          <div className="dash-banner-inner">
             <div className="kpi-icon-wrap kpi-warning">
               <Clock className="w-6 h-6" />
             </div>
             <div>
-              <h2 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>Verification in progress</h2>
-              <p style={{ marginTop: '4px', fontSize: '13px', color: 'var(--slate-700)' }}>
+              <h2 className="dash-banner-title">Verification in progress</h2>
+              <p className="dash-banner-desc">
                 Your pharmacy profile is pending review. This usually takes 1-2 business days.
               </p>
             </div>
@@ -202,14 +180,14 @@ export default function Dashboard() {
 
       {/* Metrics Grid */}
       <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
+        <div className="dashboard-section-header">
           <div>
-            <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Operations snapshot</h2>
-            <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>Live inventory signals power expiries, stock floors, and AI recommendations.</p>
+            <h2 className="dashboard-section-title">Operations snapshot</h2>
+            <p className="dashboard-section-sub">Live inventory signals power expiries, stock floors, and AI recommendations.</p>
           </div>
           {pharmacy.status === 'VERIFIED' && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '9999px', padding: '4px 10px' }}>
-              <TrendingUp style={{ width: '14px', height: '14px', color: 'var(--green-600)' }} />
+            <span className="dashboard-live-badge">
+              <TrendingUp style={{ width: '13px', height: '13px', color: 'var(--green-700)' }} />
               Live workspace
             </span>
           )}
@@ -249,17 +227,17 @@ export default function Dashboard() {
 
       {/* AI Insights & Timeline Grid */}
       <div className="dashboard-grid">
-        <div className="dashboard-col-5" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="dashboard-col-5 dashboard-col-stack">
+          <div className="dashboard-heading-icon-row">
             <History style={{ width: '16px', height: '16px', color: 'var(--slate-500)' }} />
-            <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Operational timeline</h2>
+            <h2 className="dashboard-subheading">Operational timeline</h2>
           </div>
           
           <div className="timeline-list">
             {timeline.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text)' }}>No operational events yet</p>
-                <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>As you verify, stock, and rotate inventory, MASAS will assemble an audit trail here.</p>
+              <div className="dashboard-empty-timeline">
+                <p className="dashboard-empty-timeline-title">No operational events yet</p>
+                <p className="dashboard-empty-timeline-sub">As you verify, stock, and rotate inventory, MASAS will assemble an audit trail here.</p>
               </div>
             ) : (
               timeline.map(ev => (
@@ -273,18 +251,18 @@ export default function Dashboard() {
         </div>
 
         {pharmacy.status === 'VERIFIED' && (
-          <div className="dashboard-col-7" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="dashboard-col-7 dashboard-col-stack">
+            <div className="dashboard-ai-header">
+              <div className="dashboard-heading-icon-row">
                 <ShieldCheck style={{ width: '16px', height: '16px', color: 'var(--slate-500)' }} />
-                <h2 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Operational intelligence</h2>
+                <h2 className="dashboard-subheading">Operational intelligence</h2>
               </div>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--slate-600)', border: '1px solid var(--border)', borderRadius: '9999px', padding: '4px 10px', background: 'var(--slate-50)' }}>
+              <span className="dashboard-ai-badge">
                 MASAS AI
               </span>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+            <div className="dashboard-ai-insights-grid">
               {aiInsights.map((insight) => (
                 <AiInsightCard
                   key={insight.id}

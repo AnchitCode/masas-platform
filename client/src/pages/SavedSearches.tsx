@@ -1,35 +1,52 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import savedSearchService, { SavedSearch } from '../services/savedSearchService';
 import { Card, CardHeader, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Bell, BellOff, Trash2, MapPin, Loader2 } from 'lucide-react';
+import { Bell, BellOff, Trash2, MapPin, Search } from 'lucide-react';
 import EmptyState from '../components/ui/EmptyState';
 import AlertBanner from '../components/ui/AlertBanner';
+import { Skeleton } from '../components/ui/SkeletonLoader';
+import { Modal, ModalBody, ModalFooter } from '../components/ui/Modal';
 
 export default function SavedSearches() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searches, setSearches] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [searchToDelete, setSearchToDelete] = useState<SavedSearch | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const loadSearches = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await savedSearchService.list();
+      setSearches(res.data);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to load saved searches. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        setLoading(true);
         setError('');
         const res = await savedSearchService.list();
         if (!cancelled) setSearches(res.data);
       } catch (err: any) {
-        if (!cancelled) setError(err?.response?.data?.message || 'Failed to load saved searches');
+        if (!cancelled) setError(err?.response?.data?.message || 'Failed to load saved searches. Please check your connection.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleToggle = async (id: string, currentStatus: boolean) => {
@@ -44,12 +61,13 @@ export default function SavedSearches() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this saved search?')) return;
+  const confirmDelete = async () => {
+    if (!searchToDelete) return;
     try {
-      setDeletingId(id);
-      await savedSearchService.delete(id);
-      setSearches(prev => prev.filter(s => s.id !== id));
+      setDeletingId(searchToDelete.id);
+      await savedSearchService.delete(searchToDelete.id);
+      setSearches(prev => prev.filter(s => s.id !== searchToDelete.id));
+      setSearchToDelete(null);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to delete saved search');
     } finally {
@@ -59,8 +77,30 @@ export default function SavedSearches() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-text">Saved Searches</h1>
+            <p className="text-muted mt-1">Manage your availability alerts for medicines.</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2" role="status" aria-label="Loading saved searches">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="border-border shadow-sm">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between">
+                <div style={{ flex: 1 }}>
+                  <Skeleton style={{ height: 22, width: '48%', marginBottom: 8 }} />
+                  <Skeleton style={{ height: 14, width: '65%' }} />
+                </div>
+                <Skeleton style={{ height: 22, width: 62, borderRadius: 9999 }} />
+              </CardHeader>
+              <CardContent className="pt-0 flex items-center justify-end gap-2">
+                <Skeleton style={{ height: 32, width: 108, borderRadius: 'var(--radius-input)' }} />
+                <Skeleton style={{ height: 32, width: 72, borderRadius: 'var(--radius-input)' }} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -75,7 +115,20 @@ export default function SavedSearches() {
       </div>
 
       {error && (
-        <AlertBanner variant="error" className="mb-6">
+        <AlertBanner
+          variant="error"
+          className="mb-6"
+          action={
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={loadSearches}
+            >
+              Retry
+            </Button>
+          }
+        >
           {error}
         </AlertBanner>
       )}
@@ -85,6 +138,16 @@ export default function SavedSearches() {
           icon={Bell}
           title="No saved searches"
           description="When you search for a medicine that isn't available nearby, you can save the search to be alerted when it arrives."
+          action={
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => navigate('/search')}
+              leftIcon={Search}
+            >
+              Search medicines
+            </Button>
+          }
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -125,7 +188,7 @@ export default function SavedSearches() {
                   size="sm"
                   leftIcon={Trash2}
                   isLoading={deletingId === search.id}
-                  onClick={() => handleDelete(search.id)}
+                  onClick={() => setSearchToDelete(search)}
                 >
                   Delete
                 </Button>
@@ -134,6 +197,47 @@ export default function SavedSearches() {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!searchToDelete}
+        onClose={() => !deletingId && setSearchToDelete(null)}
+        title="Delete Saved Search"
+        description="Stop receiving availability alerts for this medicine."
+        size="sm"
+      >
+        <ModalBody>
+          <p style={{ fontSize: '13.5px', color: 'var(--text)', margin: 0 }}>
+            Are you sure you want to remove the stock alert for{' '}
+            <strong style={{ textTransform: 'capitalize' }}>
+              {searchToDelete?.query}
+            </strong>
+            ?
+          </p>
+          <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '6px', margin: '6px 0 0 0' }}>
+            You will no longer receive notifications when this medicine becomes available nearby.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!!deletingId}
+            onClick={() => setSearchToDelete(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            isLoading={!!deletingId}
+            onClick={confirmDelete}
+          >
+            Delete Alert
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
+

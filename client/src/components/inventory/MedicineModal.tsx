@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import catalogService from '../../services/catalogService';
 import inventoryService from '../../services/inventoryService';
-import { Search, X, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Loader2, AlertCircle } from 'lucide-react';
 import type { CatalogSuggestion, InventoryItem } from '../../types';
 import { FormField, Input } from '../ui/forms';
 import { Button } from '../ui/Button';
+import { Modal, ModalBody, ModalFooter } from '../ui/Modal';
 import axios from 'axios';
 
 function formatInventoryApiError(err: unknown): string {
@@ -191,153 +192,196 @@ export default function MedicineModal({ isOpen, onClose, onSuccess, initialData 
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-backdrop" style={{ zIndex: 100 }}>
-      <div className="modal-panel">
-        
-        {/* Header */}
-        <div className="modal-header">
-          <h2 className="modal-header-title">
-            {isEdit ? 'Edit Medicine' : 'Add Medicine'}
-          </h2>
-          <button onClick={onClose} className="modal-close">
-            <X style={{ width: '20px', height: '20px' }} />
-          </button>
-        </div>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={isEdit ? 'Edit Medicine' : 'Add Medicine'}
+      description={
+        isEdit
+          ? 'Update pricing, quantity, and availability in your inventory.'
+          : 'Search the global catalog or enter a new medicine to list in your pharmacy inventory.'
+      }
+      size="lg"
+    >
+      <ModalBody>
+        {error && (
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-xl bg-red-50 text-red-600 text-xs border border-red-200">
+            <AlertCircle style={{ width: '16px', height: '16px', flexShrink: 0, marginTop: '2px' }} />
+            <span style={{ whiteSpace: 'pre-line' }}>{error}</span>
+          </div>
+        )}
 
-        {/* Form Body */}
-        <div className="modal-body">
-          {error && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px', marginBottom: '20px', borderRadius: 'var(--radius-input)', background: '#fef2f2', color: '#dc2626', fontSize: '13px', border: '1px solid #fecaca' }}>
-              <AlertCircle style={{ width: '16px', height: '16px', flexShrink: 0, marginTop: '2px' }} />
-              <span style={{ whiteSpace: 'pre-line' }}>{error}</span>
-            </div>
-          )}
-
-          <form id="medicine-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Search/Name */}
-            <div ref={wrapperRef} style={{ position: 'relative', zIndex: 20 }}>
-              <FormField label="Medicine Name" required>
-                <div style={{ position: 'relative' }}>
-                  <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--muted)', zIndex: 10, pointerEvents: 'none' }} />
-                  <Input
-                    type="text"
-                    style={{ paddingLeft: '36px' }}
-                    placeholder="Type to search global catalog..."
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onFocus={() => { if (!isEdit && suggestions.length > 0) setShowSuggestions(true); }}
-                    required
-                    disabled={isEdit}
-                    autoComplete="off"
+        <form id="medicine-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
+          {/* Search/Name */}
+          <div ref={wrapperRef} style={{ position: 'relative', zIndex: 20 }}>
+            <FormField label="Medicine Name" required>
+              <div style={{ position: 'relative' }}>
+                <Search
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '16px',
+                    height: '16px',
+                    color: 'var(--muted)',
+                    zIndex: 10,
+                    pointerEvents: 'none',
+                  }}
+                />
+                <Input
+                  type="text"
+                  style={{ paddingLeft: '36px' }}
+                  placeholder="Type to search global catalog..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onFocus={() => {
+                    if (!isEdit && suggestions.length > 0) setShowSuggestions(true);
+                  }}
+                  required
+                  disabled={isEdit}
+                  autoComplete="off"
+                />
+                {searching && (
+                  <Loader2
+                    className="animate-spin"
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '16px',
+                      height: '16px',
+                      color: 'var(--muted)',
+                    }}
                   />
-                  {searching && (
-                    <Loader2 className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: 'var(--muted)' }} />
-                  )}
-                </div>
-              </FormField>
-
-              {/* Suggestions Dropdown */}
-              {!isEdit && showSuggestions && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', zIndex: 10, width: '100%', marginTop: '4px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', boxShadow: 'var(--shadow-lg)', maxHeight: '192px', overflowY: 'auto' }}>
-                  {suggestions.map((med) => (
-                    <button
-                      key={med.id}
-                      type="button"
-                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px', transition: 'background-color var(--duration) var(--ease), color var(--duration) var(--ease)', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--green-50)'; e.currentTarget.style.color = 'var(--green-600)'; }}
-                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'inherit'; }}
-                      onClick={() => handleSelectSuggestion(med)}
-                    >
-                      <span style={{ fontWeight: '600', color: 'var(--text)' }}>{med.name}</span>
-                      {med.genericName && (
-                        <span style={{ display: 'block', fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>{med.genericName}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Generic Name */}
-            <FormField label="Generic Name (Optional)">
-              <Input
-                type="text"
-                name="genericName"
-                placeholder="E.g. Paracetamol"
-                value={formData.genericName}
-                onChange={handleChange}
-                disabled={isEdit}
-              />
+                )}
+              </div>
             </FormField>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <FormField label="Price (₹)" required>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontWeight: '500', zIndex: 10, pointerEvents: 'none' }}>₹</span>
-                  <Input
-                    type="number"
-                    name="price"
-                    step="0.01"
-                    min="0.01"
-                    style={{ paddingLeft: '32px' }}
-                    placeholder="0.00"
-                    value={formData.price}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </FormField>
-              <FormField label="Stock Quantity" required>
+            {/* Suggestions Dropdown */}
+            {!isEdit && showSuggestions && suggestions.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  zIndex: 10,
+                  width: '100%',
+                  marginTop: '4px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-input)',
+                  boxShadow: 'var(--shadow-lg)',
+                  maxHeight: '192px',
+                  overflowY: 'auto',
+                }}
+              >
+                {suggestions.map((med) => (
+                  <button
+                    key={med.id}
+                    type="button"
+                    className="medicine-suggestion-btn"
+                    onClick={() => handleSelectSuggestion(med)}
+                  >
+                    <span className="medicine-suggestion-name">{med.name}</span>
+                    {med.genericName && (
+                      <span className="medicine-suggestion-generic">{med.genericName}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Generic Name */}
+          <FormField label="Generic Name (Optional)">
+            <Input
+              type="text"
+              name="genericName"
+              placeholder="E.g. Paracetamol"
+              value={formData.genericName}
+              onChange={handleChange}
+              disabled={isEdit}
+            />
+          </FormField>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <FormField label="Price (₹)" required>
+              <div style={{ position: 'relative' }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--muted)',
+                    fontWeight: '500',
+                    zIndex: 10,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  ₹
+                </span>
                 <Input
                   type="number"
-                  name="quantity"
-                  min="0"
-                  placeholder="0"
-                  value={formData.quantity}
+                  name="price"
+                  step="0.01"
+                  min="0.01"
+                  style={{ paddingLeft: '32px' }}
+                  placeholder="0.00"
+                  value={formData.price}
                   onChange={handleChange}
                   required
                 />
-              </FormField>
-            </div>
-
-            <FormField label="Expiry Date (Optional)">
+              </div>
+            </FormField>
+            <FormField label="Stock Quantity" required>
               <Input
-                type="date"
-                name="expiryDate"
-                value={formData.expiryDate}
+                type="number"
+                name="quantity"
+                min="0"
+                placeholder="0"
+                value={formData.quantity}
                 onChange={handleChange}
+                required
               />
             </FormField>
+          </div>
 
-            {isEdit && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginTop: '8px', padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', background: 'var(--slate-50)', transition: 'background-color var(--duration) var(--ease)' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--slate-100)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--slate-50)'}>
-                <input
-                  type="checkbox"
-                  name="isAvailable"
-                  style={{ width: '16px', height: '16px', borderRadius: '4px', border: '1px solid var(--border)', accentColor: 'var(--green-500)', cursor: 'pointer' }}
-                  checked={formData.isAvailable}
-                  onChange={handleChange}
-                />
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>Currently Available for Sale</span>
-              </label>
-            )}
-          </form>
-        </div>
+          <FormField label="Expiry Date (Optional)">
+            <Input
+              type="date"
+              name="expiryDate"
+              value={formData.expiryDate}
+              onChange={handleChange}
+            />
+          </FormField>
 
-        {/* Footer */}
-        <div className="modal-footer">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form="medicine-form" isLoading={saving}>
-            Save Medicine
-          </Button>
-        </div>
+          {isEdit && (
+            <label className="medicine-available-check">
+              <input
+                type="checkbox"
+                name="isAvailable"
+                className="medicine-available-checkbox"
+                checked={formData.isAvailable}
+                onChange={handleChange}
+              />
+              <span className="medicine-available-label">Currently Available for Sale</span>
+            </label>
+          )}
+        </form>
+      </ModalBody>
 
-      </div>
-    </div>
+      <ModalFooter>
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" form="medicine-form" isLoading={saving} variant="primary">
+          Save Medicine
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }
+
+

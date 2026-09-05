@@ -30,27 +30,12 @@ export default function HealthScorePanel({ score, tier, className }: HealthScore
   const offset = circumference - (clamped / 100) * circumference;
 
   return (
-    <div
-      className={cn(className)}
-      style={{
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '20px',
-        borderRadius: 'var(--radius-card)',
-        border: '1px solid var(--border)',
-        backgroundColor: 'var(--surface)',
-        padding: '24px',
-        boxShadow: 'var(--shadow-sm)'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-        <div style={{ position: 'relative', height: '112px', width: '112px', flexShrink: 0 }} role="img" aria-label={`Pharmacy health score ${clamped} out of 100, ${t.label}`}>
-          <svg style={{ height: '100%', width: '100%', transform: 'rotate(-90deg)' }} viewBox="0 0 120 120">
+    <div className={cn('health-score-panel', className)}>
+      <div className="health-score-main">
+        <div className="health-score-chart" role="img" aria-label={`Pharmacy health score ${clamped} out of 100, ${t.label}`}>
+          <svg className="health-score-svg" viewBox="0 0 120 120">
             <circle
-              style={{ color: 'var(--border)' }}
+              className="health-score-circle-bg"
               stroke="currentColor"
               strokeWidth="8"
               fill="none"
@@ -59,9 +44,11 @@ export default function HealthScorePanel({ score, tier, className }: HealthScore
               r={radius}
             />
             <circle
+              className="health-score-circle-bar"
               style={{
                 color: ringColor,
-                transition: 'stroke-dashoffset 500ms ease-out'
+                strokeDasharray: circumference,
+                strokeDashoffset: offset,
               }}
               stroke="currentColor"
               strokeWidth="8"
@@ -70,24 +57,22 @@ export default function HealthScorePanel({ score, tier, className }: HealthScore
               cx="60"
               cy="60"
               r={radius}
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
             />
           </svg>
-          <div style={{ pointerEvents: 'none', position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '24px', fontWeight: '600', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', color: 'var(--text)' }}>{clamped}</span>
-            <span style={{ fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted)' }}>Health</span>
+          <div className="health-score-center">
+            <span className="health-score-value">{clamped}</span>
+            <span className="health-score-sub">Health</span>
           </div>
         </div>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted)' }}>Pharmacy health score</p>
-          <p style={{ marginTop: '4px', fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>{t.label}</p>
-          <p style={{ marginTop: '8px', maxWidth: '448px', fontSize: '14px', lineHeight: '1.6', color: 'var(--muted)' }}>{t.hint}</p>
+        <div className="health-score-info">
+          <p className="health-score-eyebrow">Pharmacy health score</p>
+          <p className="health-score-tier-label">{t.label}</p>
+          <p className="health-score-tier-hint">{t.hint}</p>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderRadius: '12px', border: '1px solid var(--border)', backgroundColor: 'var(--slate-50)', padding: '12px 16px', maxWidth: '320px' }}>
-        <Activity style={{ marginTop: '2px', height: '16px', width: '16px', flexShrink: 0, color: 'var(--muted)' }} aria-hidden />
-        <p style={{ fontSize: '12px', lineHeight: '1.6', color: 'var(--slate-600)' }}>
+      <div className="health-score-disclaimer">
+        <Activity className="health-score-disclaimer-icon" aria-hidden />
+        <p className="health-score-disclaimer-text">
           Score blends expiry exposure, stock-floor risk, and availability. It is descriptive — not a regulatory
           certification.
         </p>

@@ -1,19 +1,18 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Search as SearchIcon, LocateFixed, ScanSearch, Filter, Bell, Camera } from 'lucide-react';
+import { MapPin, Search as SearchIcon, LocateFixed, ScanSearch, Bell, Camera, AlertCircle, RefreshCw, Loader2, Sparkles, ShieldAlert, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import searchService from '../services/searchService';
 import savedSearchService from '../services/savedSearchService';
 import PrescriptionModal from '../components/prescription/PrescriptionModal';
 import PharmacyCard from '../components/search/PharmacyCard';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import AlertBanner from '../components/ui/AlertBanner';
 import EmptyState from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent } from '../components/ui/Card';
 import { Input } from '../components/ui/forms';
+import SearchResultSkeleton from '../components/ui/SearchResultSkeleton';
 import { getErrorMessage, isCancelledRequest } from '../lib/utils';
 import type { SearchResultRow, SearchMeta } from '../types';
 
@@ -34,10 +33,11 @@ export default function Search() {
   const [results, setResults] = useState<SearchResultRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [searchMeta, setSearchMeta] = useState<SearchMeta | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
-  const [searchMeta, setSearchMeta] = useState<SearchMeta | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -75,7 +75,6 @@ export default function Search() {
     );
   }, []);
 
-  // Auto-trigger geolocation when arriving with a ?q= param
   useEffect(() => {
     if (initialQuery && geoState === 'idle') {
       requestLocation();
@@ -129,7 +128,7 @@ export default function Search() {
     };
     run();
     return () => ac.abort();
-  }, [debouncedQuery, coords]);
+  }, [debouncedQuery, coords, retryTrigger]);
 
   const handleLoadMore = async () => {
     const q = debouncedQuery.trim();
@@ -159,7 +158,6 @@ export default function Search() {
 
   const handleSaveSearch = async () => {
     if (!isAuthenticated) {
-      // Redirect to login with returnUrl
       navigate(`/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`);
       return;
     }
@@ -184,7 +182,7 @@ export default function Search() {
         radiusKm: DEFAULT_RADIUS_KM,
       });
       setSaveAlertSuccess(true);
-      setTimeout(() => setSaveAlertSuccess(false), 5000); // Hide success after 5s
+      setTimeout(() => setSaveAlertSuccess(false), 5000);
     } catch (err: any) {
       setSearchError(err?.response?.data?.message || 'Failed to save alert. Try again.');
     } finally {
@@ -195,222 +193,300 @@ export default function Search() {
   const hasMore = results.length > 0 && results.length < total;
 
   return (
-    <div className="main-content bg-slate-50">
-      <div className="bg-white border-b border-border sticky top-[56px] z-10 px-4 pt-4 pb-0 sm:px-6 shadow-sm">
-        <div className="max-w-5xl mx-auto flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative flex-1 max-w-xl">
-            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 z-10 pointer-events-none" />
-            <Input
-              id="medicine-search"
-              type="search"
-              className="pl-9 bg-slate-50 w-full"
-              placeholder="Search medicine — e.g. paracetamol, dard ki dawa"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+    <div className="main-content page-bg">
+      {/* ── Search Header ── */}
+      <div className="search-header">
+        <div className="search-container">
+          <div className="search-controls">
+            <div className="search-input-wrap">
+              <SearchIcon className="search-input-icon" size={16} />
+              <Input
+                id="medicine-search"
+                type="search"
+                className="pl-11 bg-slate-50 w-full"
+                placeholder="Search medicine — e.g. paracetamol, dard ki dawa"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {isAuthenticated && (
+            <div className="search-actions">
+              {isAuthenticated && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  leftIcon={Camera}
+                  onClick={() => setPrescriptionOpen(true)}
+                  className="whitespace-nowrap"
+                >
+                  Scan Rx
+                </Button>
+              )}
               <Button
                 type="button"
-                variant="secondary"
-                leftIcon={Camera}
-                onClick={() => setPrescriptionOpen(true)}
+                variant={geoState === 'ready' ? 'secondary' : 'primary'}
+                leftIcon={geoState === 'ready' ? MapPin : LocateFixed}
+                onClick={requestLocation}
+                isLoading={geoState === 'loading'}
                 className="whitespace-nowrap"
+                title={geoState === 'ready' ? 'Location active · Click to refresh coordinates' : 'Click to detect your current location'}
               >
-                Scan Rx
+                {geoState === 'ready'
+                  ? 'Location active'
+                  : geoState === 'denied' || geoState === 'error'
+                  ? 'Retry location'
+                  : 'Set location'}
               </Button>
+            </div>
+          </div>
+
+          <div className="search-meta-row" aria-live="polite">
+            {geoState === 'ready' ? (
+              <div className="location-indicator location-indicator--ready">
+                <span className="location-indicator-dot" />
+                <span>
+                  Using your current location · Within <strong>{DEFAULT_RADIUS_KM} km</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  className="location-refresh-btn"
+                  title="Refresh your location coordinates"
+                >
+                  <RefreshCw style={{ width: 11, height: 11 }} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+            ) : geoState === 'loading' ? (
+              <div className="location-indicator location-indicator--loading">
+                <Loader2 className="animate-spin" style={{ width: 13, height: 13, flexShrink: 0 }} />
+                <span>Detecting your location…</span>
+              </div>
+            ) : geoState === 'denied' ? (
+              <div className="location-indicator location-indicator--warning">
+                <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span>Location access blocked. Allow permissions in your browser address bar to search nearby pharmacies.</span>
+              </div>
+            ) : geoState === 'error' ? (
+              <div className="location-indicator location-indicator--warning">
+                <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span>{geoMessage || 'Could not detect location. Click "Retry location" to try again.'}</span>
+              </div>
+            ) : geoState === 'unsupported' ? (
+              <div className="location-indicator location-indicator--warning">
+                <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span>Geolocation is not supported by your browser.</span>
+              </div>
+            ) : (
+              <div className="location-indicator location-indicator--idle">
+                <LocateFixed style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span>Location required to find nearby pharmacies · Within {DEFAULT_RADIUS_KM} km radius</span>
+              </div>
             )}
-            <Button
-              type="button"
-              variant={geoState === 'ready' ? 'secondary' : 'primary'}
-              leftIcon={geoState === 'ready' ? MapPin : LocateFixed}
-              onClick={requestLocation}
-              isLoading={geoState === 'loading'}
-              className="whitespace-nowrap"
-            >
-              {geoState === 'ready' ? 'Location active' : 'Set location'}
-            </Button>
           </div>
-        </div>
-
-        {geoMessage && (
-          <div className="max-w-5xl mx-auto mt-4">
-            <AlertBanner variant={geoState === 'error' || geoState === 'denied' ? 'warning' : 'info'} title={undefined}>
-              {geoMessage}
-            </AlertBanner>
-          </div>
-        )}
-
-        <div className="max-w-5xl mx-auto mt-4 flex items-center gap-2 overflow-x-auto pb-3 no-scrollbar border-t border-border pt-3">
-          <Filter className="w-4 h-4 text-muted shrink-0 mr-1" />
-          <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-sm font-medium whitespace-nowrap cursor-pointer">All results</span>
-          <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-border text-sm font-medium text-muted whitespace-nowrap hover:bg-slate-50 cursor-pointer transition-colors">Available only</span>
-          <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-border text-sm font-medium text-muted whitespace-nowrap hover:bg-slate-50 cursor-pointer transition-colors">Within 5km</span>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto w-full px-4 py-8 sm:px-6 flex flex-col md:flex-row gap-8 items-start">
-        <div className="flex-1 w-full min-w-0">
-          <div className="space-y-6" aria-live="polite">
-            {searchError ? (
-              <AlertBanner variant="error" title="Search failed">
-                {searchError}
-              </AlertBanner>
-            ) : null}
+      {/* ── Results Area ── */}
+      <div className="search-container" style={{ paddingTop: 28, paddingBottom: 48 }}>
+        <div className="search-results" aria-live="polite">
+          {searchError ? (
+            <AlertBanner
+              variant="error"
+              title="Search failed"
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setSearchError('');
+                    setRetryTrigger((prev) => prev + 1);
+                  }}
+                >
+                  Try again
+                </Button>
+              }
+            >
+              {searchError}
+            </AlertBanner>
+          ) : null}
 
-            {searchLoading ? (
-              <div className="flex justify-center py-20">
-                <LoadingSpinner text="Searching verified stock…" />
+          {searchLoading ? (
+            <SearchResultSkeleton count={3} />
+          ) : null}
+
+          {!searchLoading && coords && debouncedQuery.trim().length >= 1 && results.length === 0 && !searchError ? (
+            <div className="search-no-results">
+              <EmptyState
+                icon={ScanSearch}
+                title="No matches in this area"
+                description="We couldn't find medicines matching your search within 12 km. Try a different medicine name, brand name, or active ingredient."
+              />
+              
+              <div className="search-no-results__alert-box">
+                {saveAlertSuccess ? (
+                  <AlertBanner variant="success" className="mb-2">
+                    Alert saved! You'll be notified when this medicine is available near you.
+                  </AlertBanner>
+                ) : null}
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  leftIcon={Bell}
+                  onClick={handleSaveSearch}
+                  isLoading={savingAlert}
+                >
+                  Alert me when available
+                </Button>
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {!searchLoading && coords && debouncedQuery.trim().length >= 1 && results.length === 0 && !searchError ? (
-              <div className="flex flex-col items-center gap-4">
-                <EmptyState
-                  icon={ScanSearch}
-                  title="No matches in this area"
-                  description="Try a different spelling or generic name. A wider search radius feature is coming soon."
-                />
-                
-                <div className="w-full max-w-sm">
-                  {saveAlertSuccess ? (
-                    <AlertBanner variant="success" className="mb-2">
-                      Alert saved! You'll be notified when this medicine is available near you.
-                    </AlertBanner>
+          {!searchLoading && results.length > 0 ? (() => {
+            const primaryResults = results.filter(r => r.matchType !== 'semantic');
+            const semanticResults = results.filter(r => r.matchType === 'semantic');
+            const targetUnavailable = searchMeta?.target && !searchMeta.target.isAvailable;
+
+            return (
+              <>
+                <div className="search-results-header">
+                  <p className="search-results-count">
+                    {total === 1 ? '1 result found' : `${results.length} shown · ${total} total matches`}
+                  </p>
+                  {searchMeta?.normalizedQuery ? (
+                    <p className="search-results-hint" data-testid="normalized-query-hint">
+                      Showing results for <span className="font-medium text-text">{searchMeta.normalizedQuery}</span>
+                    </p>
                   ) : null}
-                  <Button
-                    variant="secondary"
-                    className="w-full"
-                    leftIcon={Bell}
-                    onClick={handleSaveSearch}
-                    isLoading={savingAlert}
-                  >
-                    Alert me when available
-                  </Button>
                 </div>
-              </div>
-            ) : null}
 
-            {!searchLoading && results.length > 0 ? (() => {
-              const primaryResults = results.filter(r => r.matchType !== 'semantic');
-              const semanticResults = results.filter(r => r.matchType === 'semantic');
-              const targetUnavailable = searchMeta?.target && !searchMeta.target.isAvailable;
-
-              return (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-sm font-medium text-text">
-                        {total === 1 ? '1 result found' : `${results.length} shown · ${total} total matches`}
-                      </p>
+                {targetUnavailable ? (
+                  <div className="search-oos-banner" data-testid="target-unavailable-banner">
+                    <div className="search-oos-banner__main">
+                      <AlertTriangle className="search-oos-banner__icon" aria-hidden="true" />
+                      <div className="search-oos-banner__text">
+                        <p className="search-oos-banner__title">
+                          <strong className="capitalize">{searchMeta!.target!.name}</strong> is currently out of stock near you.
+                        </p>
+                        <p className="search-oos-banner__subtitle">
+                          Verified pharmacies nearby don't have this medicine in stock right now. See therapeutic alternatives below, or set a stock alert.
+                        </p>
+                      </div>
                     </div>
-                    {searchMeta?.normalizedQuery ? (
-                      <p className="text-xs text-muted" data-testid="normalized-query-hint">
-                        Showing results for <span className="font-medium text-text">{searchMeta.normalizedQuery}</span>
-                      </p>
-                    ) : null}
+                    <div className="search-oos-banner__actions">
+                      {saveAlertSuccess ? (
+                        <span className="search-oos-banner__saved">
+                          <CheckCircle style={{ width: 14, height: 14 }} aria-hidden="true" />
+                          <span>Alert saved! We'll notify you when in stock.</span>
+                        </span>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          leftIcon={Bell}
+                          onClick={handleSaveSearch}
+                          isLoading={savingAlert}
+                          className="search-oos-banner__btn"
+                        >
+                          Alert me when available
+                        </Button>
+                      )}
+                    </div>
                   </div>
+                ) : null}
 
-                  {/* Out-of-stock warning for explicit medicine target */}
-                  {targetUnavailable ? (
-                    <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3" data-testid="target-unavailable-banner">
-                      <span className="text-xl shrink-0">⚠️</span>
-                      <p className="text-sm font-medium text-amber-800">
-                        <span className="capitalize">{searchMeta!.target!.name}</span> is currently out of stock near you.
-                      </p>
+                {primaryResults.length > 0 ? (
+                  <ul className="search-results-list">
+                    {primaryResults.map((row) => (
+                      <li key={row.inventory?.id ?? `${row.pharmacy?.id}-${row.medicine?.id}`}>
+                        <PharmacyCard
+                          pharmacy={row.pharmacy}
+                          distanceMeters={row.distanceMeters}
+                          medicine={row.medicine}
+                          inventory={row.inventory}
+                          matchType={row.matchType}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {semanticResults.length > 0 ? (
+                  <div className="search-semantic-section">
+                    <div className="search-semantic-header">
+                      <Sparkles style={{ width: 16, height: 16, color: 'var(--green-600)', flexShrink: 0 }} aria-hidden="true" />
+                      <h3 className="search-semantic-title" data-testid="similar-medicines-heading">Similar Medicines</h3>
+                      <span className="search-semantic-badge">AI Suggested</span>
                     </div>
-                  ) : null}
-
-                  {/* Primary results (exact / partial / generic) */}
-                  {primaryResults.length > 0 ? (
-                    <ul className="flex flex-col gap-4">
-                      {primaryResults.map((row) => (
+                    <p className="search-semantic-disclaimer">
+                      <ShieldAlert style={{ width: 13, height: 13, flexShrink: 0 }} aria-hidden="true" />
+                      <span>Consult your doctor before taking similar medicines</span>
+                    </p>
+                    <ul className="search-results-list">
+                      {semanticResults.map((row) => (
                         <li key={row.inventory?.id ?? `${row.pharmacy?.id}-${row.medicine?.id}`}>
                           <PharmacyCard
                             pharmacy={row.pharmacy}
                             distanceMeters={row.distanceMeters}
                             medicine={row.medicine}
                             inventory={row.inventory}
-                            matchType={row.matchType}
-                            className="shadow-sm border-border"
+                            matchType="semantic"
                           />
                         </li>
                       ))}
                     </ul>
-                  ) : null}
+                  </div>
+                ) : null}
 
-                  {/* Semantic results section */}
-                  {semanticResults.length > 0 ? (
-                    <div className="mt-2">
-                      <div className="flex items-center gap-2 mb-3">
-                        <h3 className="text-sm font-semibold text-slate-700" data-testid="similar-medicines-heading">Similar Medicines</h3>
-                        <span className="text-xs text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full font-medium">AI Suggested</span>
-                      </div>
-                      <p className="text-xs text-muted mb-4 -mt-1">
-                        Consult your doctor before taking similar medicines
-                      </p>
-                      <ul className="flex flex-col gap-4">
-                        {semanticResults.map((row) => (
-                          <li key={row.inventory?.id ?? `${row.pharmacy?.id}-${row.medicine?.id}`}>
-                            <PharmacyCard
-                              pharmacy={row.pharmacy}
-                              distanceMeters={row.distanceMeters}
-                              medicine={row.medicine}
-                              inventory={row.inventory}
-                              matchType={row.matchType}
-                              className="shadow-sm border-border"
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
+                {hasMore ? (
+                  <div className="flex justify-center pt-6">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleLoadMore}
+                      isLoading={loadMoreLoading}
+                      className="min-w-[12rem]"
+                    >
+                      Load more results
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            );
+          })() : null}
 
-                  {hasMore ? (
-                    <div className="flex justify-center pt-6">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleLoadMore}
-                        isLoading={loadMoreLoading}
-                        className="min-w-[12rem]"
-                      >
-                        Load more results
-                      </Button>
-                    </div>
-                  ) : null}
-                </>
-              );
-            })() : null}
-
-            {!searchLoading && !coords ? (
-              <EmptyState
-                icon={LocateFixed}
-                title="Location Required"
-                description="Enable location to find medicines near you. Click 'Set location' to begin."
-              />
-            ) : null}
-          </div>
-        </div>
-
-        <div className="hidden lg:block w-72 shrink-0 sticky top-[160px]">
-          <Card className="border-border shadow-sm">
-            <CardContent className="p-0">
-              <div className="h-40 bg-slate-100 flex items-center justify-center rounded-t-[10px] relative overflow-hidden">
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cartographer.png')] opacity-20 mix-blend-multiply"></div>
-                <MapPin className="text-slate-300 w-10 h-10 relative z-10" />
-              </div>
-              <div className="p-5">
-                <h4 className="font-semibold text-text mb-1">Nearby Pharmacies</h4>
-                <p className="text-sm text-muted mb-4">View verified pharmacies around your location.</p>
-                <Button variant="secondary" className="w-full">
-                  Browse Map
+          {!searchLoading && !coords ? (
+            <EmptyState
+              icon={geoState === 'denied' ? AlertCircle : LocateFixed}
+              title={
+                geoState === 'denied'
+                  ? 'Location Access Blocked'
+                  : geoState === 'error'
+                  ? 'Location Detection Failed'
+                  : 'Location Required'
+              }
+              description={
+                geoState === 'denied'
+                  ? "Your browser is blocking location permissions for MASAS. Please click the site settings / lock icon in your address bar, allow location access, and click 'Retry location' below."
+                  : geoState === 'error'
+                  ? `${geoMessage || 'Could not determine your current position'}. Please ensure your device GPS is active and try again.`
+                  : "Enable location to find real-time medicine availability from verified pharmacies near you within 12 km."
+              }
+              action={
+                <Button
+                  type="button"
+                  variant="primary"
+                  leftIcon={LocateFixed}
+                  onClick={requestLocation}
+                  isLoading={geoState === 'loading'}
+                >
+                  {geoState === 'denied' || geoState === 'error' ? 'Retry location' : 'Set location'}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
+              }
+            />
+          ) : null}
         </div>
       </div>
 

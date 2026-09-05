@@ -18,37 +18,13 @@ import {
 } from 'lucide-react';
 import { getErrorMessage } from '../../lib/utils';
 import type { AdminStats, Pharmacy } from '../../types';
+import KpiTile from '../../components/ui/KpiTile';
 
 const statusVariantMap: Record<string, string> = {
   VERIFIED: 'success',
   PENDING: 'warning',
   REJECTED: 'danger',
 };
-
-interface KpiTileProps {
-  icon: React.ElementType;
-  label: string;
-  value: number | string;
-  hint?: string;
-  tone?: string;
-}
-
-function KpiTile({ icon: Icon, label, value, hint, tone = 'success' }: KpiTileProps) {
-  return (
-    <div className="kpi-tile">
-      <div className="kpi-header">
-        <div>
-          <p className="kpi-label">{label}</p>
-          <p className="kpi-value">{value}</p>
-        </div>
-        <span className={`kpi-icon-wrap kpi-${tone}`}>
-          <Icon style={{ width: 20, height: 20 }} strokeWidth={2} aria-hidden />
-        </span>
-      </div>
-      {hint && <p className="kpi-hint">{hint}</p>}
-    </div>
-  );
-}
 
 function greetingForHour() {
   const h = new Date().getHours();
@@ -86,21 +62,21 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+      <div className="admin-loading-stack">
         <PageHeader title="Admin Dashboard" description="Loading platform statistics…" />
         <div className="kpi-grid">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="skeleton" style={{ height: 132, borderRadius: 'var(--radius-card)' }} />
+            <div key={i} className="skeleton admin-skeleton-kpi" />
           ))}
         </div>
-        <div className="skeleton" style={{ height: 280, borderRadius: 'var(--radius-card)' }} />
+        <div className="skeleton admin-skeleton-card" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="admin-error-stack">
         <PageHeader title="Admin Dashboard" description="Platform overview and statistics" />
         <AlertBanner variant="error" title="Failed to load dashboard">
           {error}
@@ -113,15 +89,15 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingBottom: 32 }}>
+    <div className="admin-dashboard-layout">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+      <div className="admin-header-row">
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+          <h1 className="admin-dashboard-title">
             {greeting}, {adminName}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: 'var(--muted)' }}>MASAS Administration</span>
+          <div className="admin-header-subrow">
+            <span className="admin-header-subtitle">MASAS Administration</span>
             <StatusBadge variant="neutral">Admin</StatusBadge>
           </div>
         </div>
@@ -137,9 +113,9 @@ export default function AdminDashboard() {
 
       {/* KPI Grid */}
       <section>
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Platform overview</h2>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+        <div className="admin-section-header">
+          <h2 className="admin-section-title">Platform overview</h2>
+          <p className="admin-section-sub">
             Aggregate platform statistics across all registered pharmacies.
           </p>
         </div>
@@ -177,15 +153,15 @@ export default function AdminDashboard() {
 
       {/* Users stat */}
       <section>
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 20 }}>
+        <div className="card admin-user-stat-card">
           <span className="kpi-icon-wrap kpi-info">
             <Users style={{ width: 20, height: 20 }} strokeWidth={2} aria-hidden />
           </span>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+          <div className="admin-user-stat-info">
+            <p className="admin-user-stat-title">
               {stats?.totalUsers ?? 0} registered users
             </p>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+            <p className="admin-user-stat-sub">
               Pharmacy owners and administrators on the platform
             </p>
           </div>
@@ -194,10 +170,10 @@ export default function AdminDashboard() {
 
       {/* Recent Pharmacies */}
       <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
+        <div className="admin-section-header-split">
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>Recent registrations</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+            <h2 className="admin-section-title">Recent registrations</h2>
+            <p className="admin-section-sub">
               Latest pharmacy registrations on the platform
             </p>
           </div>
@@ -212,14 +188,14 @@ export default function AdminDashboard() {
         </div>
 
         {stats?.recentPharmacies?.length === 0 ? (
-          <div className="card" style={{ padding: '40px 20px', textAlign: 'center' }}>
+          <div className="card admin-empty-card">
             <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>No pharmacies registered yet</p>
             <p style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)' }}>
               Pharmacies will appear here as they register on the platform.
             </p>
           </div>
         ) : (
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="card admin-table-card">
             <div className="masas-table-shell">
               <table className="masas-table">
                 <thead className="masas-thead">
@@ -235,18 +211,17 @@ export default function AdminDashboard() {
                   {stats?.recentPharmacies?.map((p: Pharmacy) => (
                     <tr
                       key={p.id}
-                      className="masas-tr"
-                      style={{ cursor: 'pointer' }}
+                      className="masas-tr admin-table-row"
                       onClick={() => navigate('/admin/pharmacies')}
                     >
                       <td className="masas-td">
                         <div>
-                          <p style={{ fontWeight: 500, color: 'var(--text)' }}>{p.name}</p>
-                          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{p.user?.email}</p>
+                          <p className="admin-table-pharmacy-name">{p.name}</p>
+                          <p className="admin-table-email">{p.user?.email}</p>
                         </div>
                       </td>
                       <td className="masas-td">
-                        <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--slate-600)' }}>
+                        <span className="admin-table-mono">
                           {p.licenseNumber}
                         </span>
                       </td>
@@ -256,10 +231,10 @@ export default function AdminDashboard() {
                         </StatusBadge>
                       </td>
                       <td className="masas-td">
-                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{p._count?.inventory ?? 0}</span>
+                        <span className="admin-table-numeric">{p._count?.inventory ?? 0}</span>
                       </td>
                       <td className="masas-td">
-                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                        <span className="admin-table-date">
                           {new Date(p.createdAt || '').toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
