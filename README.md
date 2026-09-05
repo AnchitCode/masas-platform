@@ -1,379 +1,330 @@
-# 🏥 MASAS — Medicine Availability & Shortage Alert System
+# MASAS — Medicine Availability & Shortage Alert System
 
-> **Production-grade healthcare SaaS platform built with TypeScript, React, Express, PostgreSQL + PostGIS, Prisma, Google OAuth, and a fully automated CI/CD pipeline.**
-
-MASAS helps patients discover nearby medicine availability in real time using geospatial search, while enabling pharmacies to manage live inventory, stock visibility, and medicine availability — all within a secure, admin-verified ecosystem.
+> A full-stack healthcare platform with AI-powered medicine search, prescription scanning, real-time availability alerts, and geospatial pharmacy discovery — built with TypeScript, React, Express, PostgreSQL + PostGIS + pgvector, and Ollama.
 
 [![CI](https://github.com/AnchitCode/masas-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/AnchitCode/masas-platform/actions/workflows/ci.yml)
 
+MASAS connects patients with nearby pharmacies that have the medicine they need — right now, within their area. Pharmacies manage live inventory, and the platform handles everything from intelligent search (including typos, Hindi queries, and prescription photos) to automated availability alerts when out-of-stock medicines are restocked.
+
 ---
 
-## 🚀 Engineering Highlights
+## Engineering Highlights
 
 | Category | Details |
 |---|---|
-| 🗺️ **Geospatial Search** | PostGIS-powered medicine discovery with distance-aware pharmacy results |
-| 🔐 **SaaS-Level Auth** | Google OAuth, email verification, forgot/reset password, JWT + refresh token rotation |
-| 🛡️ **Security** | SHA-256 token hashing, session invalidation, audit logging, rate limiting, RBAC |
-| 🧩 **Architecture** | Modular TypeScript backend (Routes → Validation → Controllers → Services → Prisma) |
-| 🧪 **Testing** | 129 integration tests across 9 test files using Vitest + Supertest |
-| ⚙️ **CI/CD** | GitHub Actions pipeline with PostGIS service container, lint, test, and build stages |
-| 📘 **API Docs** | Auto-generated Swagger/OpenAPI documentation |
-| 🔒 **DB Safety** | 8-check safety guard preventing destructive test operations on production databases |
+| **AI-Powered Search** | Hybrid keyword + semantic search with Ollama embeddings, pgvector, Hinglish normalization, and typo/synonym resolution |
+| **Prescription Scanner** | OCR (Tesseract.js) → LLM extraction (Phi-3.5) → catalog matching pipeline, fully local |
+| **Real-Time Platform** | Socket.io push, persistent notifications, background availability alerts via BullMQ + Redis |
+| **Geospatial** | PostGIS-powered proximity search with distance-aware ranking |
+| **Auth & Security** | Google OAuth, email verification, JWT + refresh token rotation, SHA-256 hashing, RBAC, audit logging |
+| **Testing** | 24 integration test files using Vitest + Supertest with isolated PostGIS + pgvector test database |
+| **CI/CD** | GitHub Actions pipeline with PostGIS + pgvector service container, lint, test, and build stages |
 
 ---
 
-## 🚨 The Problem
+## The Problem
 
-Patients often struggle to find medicines — visiting **3–5 pharmacies** before finding availability. This is a real healthcare accessibility problem experienced daily, especially during:
+Patients often visit 3–5 pharmacies before finding a medicine in stock. This is a daily healthcare accessibility issue — especially during emergencies, chronic disease treatment, or for rare medicines.
 
-- Emergency situations
-- Chronic disease treatment (BP, diabetes)
-- Rare medicine requirements
+## The Solution
 
-## 💡 The Solution
+MASAS provides a centralized platform where:
 
-MASAS provides a centralized platform that:
-
-- 🔍 Shows **real-time medicine availability** across nearby pharmacies
-- 📍 Enables **location-aware medicine discovery** using geospatial search
-- 🏪 Helps pharmacies **manage inventory** efficiently
-- ⏳ Tracks **stock levels and expiry** information
-- 🛡️ Ensures pharmacy legitimacy through **admin verification**
+- Patients **search for medicines** near their location and see real-time availability, pricing, and distance
+- **AI understands intent** — typos ("Paractemol"), Hindi queries ("sir dard ki dawa"), synonyms ("acetaminophen"), and concept queries ("fever medicine") all return the right results
+- **Prescription photos** can be uploaded to extract and find medicines automatically
+- **Availability alerts** notify patients when an out-of-stock medicine is restocked nearby
+- Pharmacies **manage inventory** with stock levels, pricing, and expiry tracking
+- An **admin verification system** ensures only legitimate pharmacies appear in search results
 
 ---
 
-## 🧠 Core Features
+## Core Features
 
-### 🔍 Public Medicine Search
-- Geospatial proximity search powered by PostgreSQL + PostGIS
-- Distance-aware pharmacy results sorted by nearest first
-- Availability-aware inventory visibility
-- Only verified pharmacies appear in public search results
+### Intelligent Medicine Search
 
-### 🔐 SaaS-Level Authentication
-- **Google Sign-In** — One-click OAuth authentication via Google Identity Services
-- **Email/Password** registration with mandatory email verification
-- **Forgot Password** — Token-based password reset flow with email delivery
-- **Remember Me** — 7-day (default) or 30-day session duration
-- **Refresh Token Rotation** — Stored server-side with SHA-256 hashing
-- **Session Invalidation** — Password reset revokes all active sessions via `tokenVersion`
-- **Authentication Audit Logging** — Every auth event tracked with IP + User-Agent
+MASAS search goes far beyond keyword matching. The search pipeline combines multiple strategies to understand what the user actually wants:
 
-### 🏪 Pharmacy Management
-- Pharmacy registration and profile onboarding
-- Inventory CRUD with stock quantity, pricing, and expiry tracking
-- Availability status management (in-stock / out-of-stock)
-- Auto-resubmit to pending on profile update after rejection
+```
+User query → Hinglish normalizer → embedding → pgvector cosine search → confidence filter
+                                                        ↓
+                        Keyword ILIKE + semantic candidates + PostGIS proximity
+                                                        ↓
+                              Results ranked by relevance tier → distance
+```
 
-### 🛡️ Admin Verification System
-- Role-based admin access control (ADMIN users created only via secure seeding)
-- Pharmacy verification workflow (PENDING → VERIFIED / REJECTED)
-- Admin dashboard with pharmacy listing, filtering, and status management
-- Protected admin-only API routes
+**What it handles:**
 
-### 📦 Medicine Catalog
-- Global medicine catalog shared across all pharmacies
-- Autocomplete search by name and generic name
+| Query Type | Example | How It Works |
+|---|---|---|
+| Exact match | "Aspirin" | Direct catalog lookup |
+| Typo | "Paractemol" | Levenshtein edit distance (≤ 3 edits) resolves to "paracetamol" |
+| Synonym | "acetaminophen" | Semantic similarity (≥ 0.65) resolves to "paracetamol" |
+| Hinglish | "sir dard ki dawa" | Normalized to "headache medicine" → semantic search |
+| Concept/NL | "fever medicine" | Category detection (fever → Analgesic) → filtered semantic results |
+| Nonsense | "zzzzqqqq" | Confidence filter rejects — zero results, not random medicines |
+
+**Key components:**
+- **Hinglish normalizer** — deterministic phrase-first translation of Hindi-in-English pharmaceutical queries
+- **Embedding pipeline** — each medicine in the catalog gets a 768-dimensional vector (via `nomic-embed-text`) stored in PostgreSQL using pgvector
+- **Confidence filter** — three-signal gate (Hinglish normalization, pharmaceutical terms, high embedding score) prevents meaningless queries from returning random results
+- **Hybrid SQL** — combines keyword ILIKE, semantic vector scores, and PostGIS distance in a single query, ranked by relevance tier then proximity
+
+**Availability-aware behavior:**
+- If the target medicine is **in stock** → show it, suppress semantic alternatives
+- If the target medicine is **out of stock** → show it as unavailable, display same-category alternatives from nearby pharmacies
+- Response metadata includes explicit `target: { name, isAvailable }` for clear frontend rendering
+
+→ *Detailed implementation: [Phase 9 Documentation](Documentation/phase_9_documentation.md#91--intelligent-medicine-search)*
+
+### Prescription Scanner
+
+Upload a prescription photo → get matched medicines from the catalog.
+
+```
+Prescription image → Tesseract.js OCR → Phi-3.5 LLM extraction → Catalog matching
+```
+
+**Pipeline:**
+1. **OCR** — Tesseract.js extracts printed text from the image (runs locally, no cloud APIs)
+2. **LLM extraction** — Phi-3.5 (via Ollama) identifies medicine names from the OCR text, validated with Zod schemas
+3. **Catalog matching** — each extracted name is matched against the database using exact → fuzzy → semantic tiers (max 3 matches per medicine)
+
+**Safety by design:**
+- The image buffer is **discarded immediately** after OCR — never stored on disk, in the database, or in logs
+- LLM output is **always validated** with Zod before use — invalid responses are rejected
+- The LLM is prompted to **never** provide medical advice, corrections, or substitutions
+- Endpoint returns 200 with degraded results on any AI failure — never 500
+
+→ *Detailed implementation: [Phase 9 Documentation](Documentation/phase_9_documentation.md#92--prescription-scanner)*
+
+### Geospatial Pharmacy Discovery
+
+All search results are geographically aware:
+- PostGIS `ST_DWithin` for radius filtering and `ST_Distance` for distance calculation
+- Configurable search radius (default 10 km, max 100 km)
+- Only `VERIFIED` pharmacies with `isAvailable = true` and `quantity > 0` appear in results
+- Results sorted by relevance score first, then proximity
+
+### Real-Time Notifications & Availability Alerts
+
+The platform is event-driven — inventory changes propagate instantly through multiple channels:
+
+```
+Pharmacy updates inventory → Event Bus
+                               ├→ Socket.io (instant push to online users)
+                               ├→ Notification (persisted in DB)
+                               ├→ Email (queued via BullMQ)
+                               └→ Availability detector (matches saved searches)
+```
+
+**For patients (CUSTOMER role):**
+- Save a search (medicine + location + radius) → get notified when it's restocked nearby
+- Notifications delivered via in-app bell, email, and real-time push
+- Deduplication prevents alert spam while stock remains positive
+- 30-minute background checker catches inventory that existed before the search was saved
+
+**For pharmacies:**
+- Low-stock threshold alerts when inventory crosses below a configurable level
+- Verification/rejection notifications from admin actions
+- Real-time inventory sync across browser sessions
+
+→ *Detailed implementation: [Phase 8 Documentation](Documentation/phase_8_documentation.md)*
+
+### Pharmacy Inventory Management
+
+- Add medicines from a shared catalog (with autocomplete)
+- Track stock quantity, pricing, expiry dates, and availability status
+- Low-stock thresholds with automatic alerts
 - Automatic catalog deduplication on inventory creation
 
+### Authentication & Security
+
+| Feature | Implementation |
+|---|---|
+| Google Sign-In | One-click OAuth via Google Identity Services |
+| Email/password | Registration with mandatory email verification |
+| Password reset | Token-based flow with email delivery, invalidates all sessions |
+| Refresh tokens | Server-side stored (SHA-256 hashed), with rotation and replay detection |
+| Session management | `tokenVersion` increment revokes all active sessions |
+| Rate limiting | Route-specific limits (5/15min register, 3/15min email sends) |
+| Audit logging | Every auth event tracked with IP, User-Agent, and metadata |
+| RBAC | Three roles: `CUSTOMER`, `PHARMACY`, `ADMIN` with route-level enforcement |
+
+### Admin Verification System
+
+- Pharmacy verification workflow: `PENDING → VERIFIED / REJECTED`
+- Admin dashboard with pharmacy listing and status management
+- `ADMIN` accounts created only via secure database seeding — blocked from public registration
+- Verification/rejection triggers notifications to pharmacy owners
+
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | **Language** | TypeScript (end-to-end) |
-| **Frontend** | React 19 · Vite · Vanilla CSS · React Router 7 · Lucide Icons |
+| **Frontend** | React 19 · Vite 8 · Tailwind CSS 4 · React Router 7 · Lucide Icons |
 | **Backend** | Node.js · Express 4 · Zod validation |
-| **Database** | PostgreSQL 16 · PostGIS · NeonDB (serverless) |
-| **ORM** | Prisma 6 |
-| **Authentication** | JWT · Refresh Tokens · Google OAuth (`google-auth-library`) · Nodemailer |
-| **Testing** | Vitest · Supertest · 129 integration tests |
-| **CI/CD** | GitHub Actions (4-stage pipeline with PostGIS service container) |
-| **API Docs** | Swagger / OpenAPI (auto-generated from JSDoc annotations) |
+| **Database** | PostgreSQL 16 · PostGIS · pgvector · Prisma 6 |
+| **AI/ML** | Ollama (local) · nomic-embed-text (embeddings) · Phi-3.5 (LLM) · Tesseract.js (OCR) |
+| **Real-Time** | Socket.io (WebSocket push) |
+| **Job Queue** | BullMQ · Redis (ioredis) |
+| **Auth** | JWT · Google OAuth (`google-auth-library`) · Nodemailer |
+| **Testing** | Vitest · Supertest · 24 test files |
+| **CI/CD** | GitHub Actions (PostGIS + pgvector + Redis service containers) |
 | **Security** | Helmet · CORS · bcrypt · SHA-256 token hashing · express-rate-limit |
+| **API Docs** | Swagger / OpenAPI (auto-generated) |
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        MASAS Platform                           │
-├──────────────────────────┬──────────────────────────────────────┤
-│       React Client       │          Express API Server          │
-│                          │                                      │
-│  ┌──────────────────┐    │    ┌──────────────────────────────┐  │
-│  │ Pages            │    │    │ Middleware                    │  │
-│  │ ├─ Home          │    │    │ ├─ auth (JWT verify)         │  │
-│  │ ├─ Search        │    │    │ ├─ authorize (RBAC)          │  │
-│  │ ├─ Login         │◄───┼───►│ ├─ validate (Zod)           │  │
-│  │ ├─ Register      │    │    │ ├─ errorHandler              │  │
-│  │ ├─ Dashboard     │    │    │ └─ pharmacy (status guard)   │  │
-│  │ ├─ Admin Panel   │    │    ├──────────────────────────────┤  │
-│  │ └─ Auth Pages    │    │    │ Modules (6)                  │  │
-│  │   ├─ Verify Email│    │    │ ├─ auth     (10 endpoints)   │  │
-│  │   ├─ Forgot Pass │    │    │ ├─ pharmacy (4 endpoints)    │  │
-│  │   └─ Reset Pass  │    │    │ ├─ inventory(3 endpoints)    │  │
-│  ├──────────────────┤    │    │ ├─ search   (1 endpoint)     │  │
-│  │ Services         │    │    │ ├─ catalog  (1 endpoint)     │  │
-│  │ ├─ authService   │    │    │ └─ admin    (3 endpoints)    │  │
-│  │ └─ api (Axios)   │    │    ├──────────────────────────────┤  │
-│  ├──────────────────┤    │    │ Utils                        │  │
-│  │ Context          │    │    │ ├─ jwt      (access/refresh) │  │
-│  │ └─ AuthContext   │    │    │ ├─ email    (SMTP transport) │  │
-│  ├──────────────────┤    │    │ ├─ tokenUtils (SHA-256)      │  │
-│  │ Hooks            │    │    │ ├─ authAudit (event logging) │  │
-│  │ └─ useGoogleAuth │    │    │ └─ dbSafety (8-check guard)  │  │
-│  └──────────────────┘    │    └──────────────┬───────────────┘  │
-│                          │                   │                  │
-│                          │    ┌──────────────▼───────────────┐  │
-│                          │    │   PostgreSQL + PostGIS        │  │
-│                          │    │   (NeonDB Serverless)         │  │
-│                          │    │                               │  │
-│                          │    │   9 tables · 2 enums          │  │
-│                          │    │   Geospatial extensions       │  │
-│                          │    └───────────────────────────────┘  │
-└──────────────────────────┴──────────────────────────────────────┘
-```
-
----
-
-## 📦 Project Structure
-
-```
-MASAS/
-├── client/                          # React + Vite frontend
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── common/              # ProtectedRoute, etc.
-│   │   │   ├── dashboard/           # Dashboard widgets
-│   │   │   ├── inventory/           # Inventory management UI
-│   │   │   ├── layout/              # Navbar, layouts
-│   │   │   ├── search/              # Search results, cards
-│   │   │   └── ui/                  # Button, Input, AlertBanner, forms
-│   │   ├── context/
-│   │   │   └── AuthContext.tsx       # Auth state + Google OAuth
-│   │   ├── hooks/
-│   │   │   └── useGoogleAuth.ts     # Google Identity Services hook
-│   │   ├── pages/
-│   │   │   ├── Home.tsx             # Landing page
-│   │   │   ├── Search.tsx           # Medicine search
-│   │   │   ├── Login.tsx            # Sign in (Google + email)
-│   │   │   ├── Register.tsx         # Sign up (Google + email)
-│   │   │   ├── AccountCreated.tsx   # Post-registration confirmation
-│   │   │   ├── ForgotPassword.tsx   # Request password reset
-│   │   │   ├── ResetPassword.tsx    # Token-based password reset
-│   │   │   ├── VerifyEmail.tsx      # Email verification handler
-│   │   │   ├── TermsOfService.tsx   # Legal page
-│   │   │   ├── PrivacyPolicy.tsx    # Legal page
-│   │   │   ├── PublicPharmacy.tsx    # Public pharmacy profile
-│   │   │   ├── dashboard/           # Pharmacy dashboard, profile, inventory
-│   │   │   └── admin/               # Admin dashboard, pharmacy management
-│   │   ├── services/
-│   │   │   ├── api.ts               # Axios instance with interceptors
-│   │   │   └── authService.ts       # Auth API methods
-│   │   └── utils/
-│   │       └── constants.ts         # Routes, env vars, enums
-│   └── index.html                   # Entry point + Google GIS script
-│
-├── server/                          # Express + TypeScript backend
-│   ├── prisma/
-│   │   ├── schema.prisma            # 9 models, 2 enums, PostGIS
-│   │   ├── migrations/              # SQL migrations (version-controlled)
-│   │   └── seed.ts                  # Admin user seeding
-│   ├── src/
-│   │   ├── config/
-│   │   │   ├── env.ts               # Env validation (fail-fast)
-│   │   │   ├── cors.ts              # CORS configuration
-│   │   │   └── swagger.ts           # OpenAPI spec generation
-│   │   ├── middleware/
-│   │   │   ├── auth.ts              # JWT verification
-│   │   │   ├── authorize.ts         # Role-based access control
-│   │   │   ├── validate.ts          # Zod schema validation
-│   │   │   ├── pharmacy.ts          # Pharmacy status guard
-│   │   │   └── errorHandler.ts      # Global error handler
-│   │   ├── modules/
-│   │   │   ├── auth/                # register, login, google, refresh, logout,
-│   │   │   │                        # forgot-password, reset-password, verify-email,
-│   │   │   │                        # resend-verification, me
-│   │   │   ├── pharmacy/            # profile CRUD, public profile
-│   │   │   ├── inventory/           # stock management
-│   │   │   ├── search/              # PostGIS geospatial search
-│   │   │   ├── catalog/             # medicine autocomplete
-│   │   │   └── admin/               # pharmacy verification workflows
-│   │   ├── utils/
-│   │   │   ├── jwt.ts               # Token generation/verification (jti uniqueness)
-│   │   │   ├── email.ts             # Provider-agnostic SMTP (Nodemailer)
-│   │   │   ├── tokenUtils.ts        # Secure token generation + SHA-256 hashing
-│   │   │   ├── authAudit.ts         # Fire-and-forget audit logging
-│   │   │   ├── dbSafety.ts          # 8-check production database guard
-│   │   │   ├── apiError.ts          # Custom error class
-│   │   │   ├── apiResponse.ts       # Standardized response format
-│   │   │   └── logger.ts            # Structured logging
-│   │   └── __tests__/               # 9 test files, 129 integration tests
-│   │       ├── setup.ts             # Test DB lifecycle + factory helpers
-│   │       ├── auth.test.ts         # Core auth tests
-│   │       ├── auth-enhanced.test.ts# SaaS auth tests (28 cases)
-│   │       ├── pharmacy.test.ts     # Pharmacy module tests
-│   │       ├── inventory.test.ts    # Inventory module tests
-│   │       ├── search.test.ts       # Geospatial search tests
-│   │       ├── catalog.test.ts      # Catalog search tests
-│   │       ├── admin.test.ts        # Admin workflow tests
-│   │       ├── dbSafety.test.ts     # Safety guard tests
-│   │       └── health.test.ts       # Health endpoint tests
-│   └── .env.example                 # Required environment variables
-│
-├── .github/workflows/
-│   └── ci.yml                       # 4-stage CI pipeline
-│
-└── Documentation/                   # Design docs and references
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           MASAS Platform                                │
+├────────────────────────────┬────────────────────────────────────────────┤
+│      React Client          │            Express API Server              │
+│                            │                                            │
+│  Pages · Components        │    Middleware (auth, RBAC, validation)      │
+│  Auth Context              │                                            │
+│  Socket.io Client          │    Modules (8)                             │
+│  Notification Bell         │    ├─ auth          (10 endpoints)         │
+│  Search + Prescription UI  │    ├─ pharmacy      (4 endpoints)          │
+│                            │    ├─ inventory     (3 endpoints)          │
+│                            │    ├─ search        (1 endpoint)           │
+│                            │    ├─ catalog       (1 endpoint)           │
+│                            │    ├─ admin         (3 endpoints)          │
+│                            │    ├─ notification  (5 endpoints)          │
+│                            │    ├─ prescription  (1 endpoint)           │
+│                            │    └─ saved-search  (4 endpoints)          │
+│                            │                                            │
+│                            │    AI Module                               │
+│                            │    ├─ Provider abstraction (Ollama)        │
+│                            │    ├─ Embedding pipeline                   │
+│                            │    ├─ Semantic search (pgvector)           │
+│                            │    ├─ Hinglish normalizer                  │
+│                            │    ├─ OCR service (Tesseract.js)           │
+│                            │    └─ Prescription extractor (Phi-3.5)     │
+│                            │                                            │
+│                            │    Event-Driven Infrastructure             │
+│                            │    ├─ Event Bus (typed emitter)            │
+│                            │    ├─ Socket.io (real-time push)           │
+│                            │    ├─ Notification bridge                  │
+│                            │    ├─ Availability detector                │
+│                            │    └─ Low-stock detector                   │
+├────────────────────────────┴────────────────────────────────────────────┤
+│                                                                         │
+│   PostgreSQL 16 + PostGIS + pgvector    Redis          Ollama           │
+│   11 tables · 3 enums                  BullMQ          nomic-embed-text │
+│   HNSW vector index                    3 queues        phi3.5           │
+│   Geospatial indexes                   (email,         Tesseract.js     │
+│                                         alerts,                         │
+│                                         embeddings)                     │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔌 API Endpoints
+## API Endpoints
 
-### Authentication (`/api/v1/auth`)
+### Authentication — `/api/v1/auth`
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/register` | — | Register pharmacy account (email verification required) |
-| `POST` | `/login` | — | Email + password login (returns JWT + sets refresh cookie) |
+|---|---|---|---|
+| `POST` | `/register` | — | Register account (email verification required) |
+| `POST` | `/login` | — | Email + password login |
 | `POST` | `/google` | — | Google OAuth authentication |
 | `POST` | `/forgot-password` | — | Request password reset email |
 | `POST` | `/reset-password` | — | Reset password using token |
-| `GET` | `/verify-email` | — | Verify email address using token |
+| `GET` | `/verify-email` | — | Verify email address |
 | `POST` | `/resend-verification` | — | Resend verification email |
-| `POST` | `/refresh` | Cookie | Rotate access token using refresh token |
+| `POST` | `/refresh` | Cookie | Rotate access token |
 | `GET` | `/me` | Bearer | Get authenticated user profile |
-| `POST` | `/logout` | — | Revoke refresh token + clear cookie |
+| `POST` | `/logout` | — | Revoke refresh token |
 
-### Pharmacy (`/api/v1/pharmacy`)
+### Search — `/api/v1/search`
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
+|---|---|---|---|
+| `GET` | `/inventory` | — | Hybrid keyword + semantic + geospatial medicine search |
+
+### Prescription — `/api/v1/prescription`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/extract` | Bearer | Upload prescription image → OCR → LLM → catalog matching |
+
+### Pharmacy — `/api/v1/pharmacy`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
 | `POST` | `/profile` | Bearer | Create pharmacy profile |
 | `GET` | `/profile` | Bearer | Get own pharmacy profile |
 | `PUT` | `/profile` | Bearer | Update pharmacy profile |
 | `GET` | `/:id` | — | Get public pharmacy profile |
 
-### Inventory (`/api/v1/inventory`)
+### Inventory — `/api/v1/inventory`
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
+|---|---|---|---|
 | `POST` | `/` | Bearer | Add medicine to inventory |
 | `PUT` | `/:id` | Bearer | Update inventory item |
 | `DELETE` | `/:id` | Bearer | Remove inventory item |
 
-### Search (`/api/v1/search`)
+### Catalog — `/api/v1/catalog`
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/inventory` | — | Geospatial medicine search with distance |
-
-### Catalog (`/api/v1/catalog`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
+|---|---|---|---|
 | `GET` | `/search` | Bearer | Medicine name autocomplete |
 
-### Admin (`/api/v1/admin`)
+### Notifications — `/api/v1/notifications`
 
 | Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
+|---|---|---|---|
+| `GET` | `/` | Bearer | List notifications (paginated) |
+| `GET` | `/unread-count` | Bearer | Get unread count for badge |
+| `PATCH` | `/read-all` | Bearer | Mark all as read |
+| `PATCH` | `/:id/read` | Bearer | Mark one as read |
+| `DELETE` | `/:id` | Bearer | Delete a notification |
+
+### Saved Searches — `/api/v1/saved-searches`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/` | Customer | Save a search for availability alerts |
+| `GET` | `/` | Customer | List saved searches |
+| `PATCH` | `/:id` | Customer | Toggle active/inactive, update radius |
+| `DELETE` | `/:id` | Customer | Remove a saved search |
+
+### Admin — `/api/v1/admin`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
 | `GET` | `/pharmacies` | Admin | List all pharmacies with filters |
 | `PATCH` | `/pharmacies/:id/verify` | Admin | Verify a pharmacy |
 | `PATCH` | `/pharmacies/:id/reject` | Admin | Reject a pharmacy |
 
----
+### System
 
-## 🔍 Geospatial Search
-
-Search medicine availability using geolocation-aware queries powered by PostGIS:
-
-```http
-GET /api/v1/search/inventory?query=paracetamol&lat=22.72&lng=75.86&radius=5000
-```
-
-Returns distance-sorted results:
-
-```json
-{
-  "success": true,
-  "data": {
-    "results": [
-      {
-        "pharmacyName": "HealthPlus Pharmacy",
-        "distance": "1.2 km",
-        "medicineName": "Paracetamol 500mg",
-        "price": 25.50,
-        "quantity": 150,
-        "isAvailable": true
-      }
-    ]
-  }
-}
-```
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/health` | — | Server health check |
+| `GET` | `/api/v1/ai/health` | — | AI subsystem health check |
 
 ---
 
-## 🔐 Authentication Flow
-
-```
-┌─────────────────── Registration Flow ───────────────────┐
-│                                                          │
-│  Register ──► Email Sent ──► Verify Email ──► Login     │
-│     │                                           │        │
-│     │  (Google)                                  ▼        │
-│     └──────────────────────────────────────► Dashboard   │
-│                                                 │        │
-│                              Pharmacy Status Check       │
-│                              ├─ No pharmacy → Profile    │
-│                              ├─ PENDING → Waiting        │
-│                              ├─ VERIFIED → Full Access   │
-│                              └─ REJECTED → Update        │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
-
-┌─────────────────── Password Reset Flow ─────────────────┐
-│                                                          │
-│  Forgot Password ──► Email Sent ──► Reset Password      │
-│                                         │                │
-│                              All sessions invalidated    │
-│                              (tokenVersion incremented)  │
-│                                         │                │
-│                                      Login Again         │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
-```
-
-### Security Measures
-
-| Feature | Implementation |
-|---|---|
-| Password hashing | bcrypt with salt rounds |
-| Token storage | Only SHA-256 hashes stored — raw tokens never persisted |
-| Token cleanup | Verification/reset tokens deleted after single use |
-| Session invalidation | Password reset increments `tokenVersion`, revokes all refresh tokens |
-| Token rotation | Each refresh generates a new JWT; old token revoked |
-| JWT uniqueness | Random `jti` (UUID) ensures every JWT is distinct |
-| No user enumeration | Forgot-password and resend-verification always return 200 |
-| Admin protection | ADMIN role blocked from public registration and Google sign-in |
-| Rate limiting | Route-specific limits (5/15min register, 3/15min email, 5/15min reset) |
-| Audit trail | All auth events logged with IP address, User-Agent, and metadata |
-
----
-
-## ⚡ Local Development Setup
+## Local Development Setup
 
 ### Prerequisites
 
 - **Node.js** ≥ 20
-- **PostgreSQL** 16+ with PostGIS extension (or [NeonDB](https://neon.tech/) free tier)
+- **PostgreSQL** 16+ with PostGIS and pgvector extensions
+- **Redis** (for BullMQ job queues)
 - **Google Cloud** OAuth 2.0 Client ID ([setup guide](https://console.cloud.google.com/apis/credentials))
 - **SMTP credentials** (Gmail App Password or [Mailtrap](https://mailtrap.io/) for dev)
+- **Ollama** (optional — required only for AI features)
 
 ### 1. Clone Repository
 
@@ -389,7 +340,7 @@ cd server
 npm install
 ```
 
-Create a `.env` file (see [`.env.example`](server/.env.example) for all required variables):
+Create a `.env` file (see [`.env.example`](server/.env.example) for reference):
 
 ```env
 # Database
@@ -411,12 +362,21 @@ SMTP_FROM=MASAS <noreply@masas.com>
 
 # Frontend URL
 CLIENT_URL=http://localhost:5173
+
+# Redis (required for BullMQ)
+REDIS_URL=redis://localhost:6379
+
+# AI (optional — everything works without it)
+AI_ENABLED=true
+OLLAMA_BASE_URL=http://localhost:11434
+AI_EMBEDDING_MODEL=nomic-embed-text
+AI_LLM_MODEL=phi3.5:3.8b-mini-instruct-q4_K_M
 ```
 
 Run database setup:
 
 ```bash
-npx prisma migrate deploy     # Apply migrations
+npx prisma migrate deploy     # Apply migrations (creates tables, pgvector, PostGIS)
 npx prisma db seed             # Create admin user
 ```
 
@@ -446,41 +406,86 @@ Start the frontend:
 npm run dev                    # Runs on http://localhost:5173
 ```
 
-### 4. Access the Application
+### 4. AI Features (Optional)
+
+AI features are disabled by default (`AI_ENABLED=false`). To enable:
+
+```bash
+# Install Ollama
+brew install ollama            # macOS
+
+# Pull required models
+ollama pull nomic-embed-text                          # Embedding model (~274 MB)
+ollama pull phi3.5:3.8b-mini-instruct-q4_K_M          # LLM for prescription extraction (~2.4 GB)
+
+# Set AI_ENABLED=true in .env
+# Restart the server
+```
+
+Backfill embeddings for existing medicines:
+
+```bash
+npx tsx scripts/run-backfill.ts
+```
+
+Verify AI health:
+
+```
+GET http://localhost:5000/api/v1/ai/health
+```
+
+### 5. Access Points
 
 | URL | Description |
 |---|---|
 | `http://localhost:5173` | Frontend application |
 | `http://localhost:5000/api/docs` | Swagger API documentation |
-| `http://localhost:5000/api/v1/health` | Health check endpoint |
+| `http://localhost:5000/api/v1/health` | Server health check |
+| `http://localhost:5000/api/v1/ai/health` | AI health check |
 
 ---
 
-## 🧪 Testing & Quality Assurance
+## Testing
 
-### Test Infrastructure
+### Infrastructure
 
 | Component | Details |
 |---|---|
-| **Runner** | Vitest (fast, TypeScript-native) |
-| **HTTP Testing** | Supertest (real HTTP requests against Express app) |
-| **Database** | Dedicated isolated PostgreSQL/PostGIS test database |
+| **Runner** | Vitest (TypeScript-native) |
+| **HTTP Testing** | Supertest (real HTTP requests against Express) |
+| **Database** | Isolated PostgreSQL with PostGIS + pgvector |
+| **Queue** | Redis for BullMQ integration tests |
 | **Isolation** | Full table truncation between tests |
 | **Coverage** | Vitest v8 coverage provider |
 
-### Test Suite — 129 Tests Across 9 Files
+### Test Suite — 24 Test Files
 
-| Test File | Tests | What It Covers |
-|---|---|---|
-| `auth.test.ts` | 17 | Registration, login, refresh, me, logout |
-| `auth-enhanced.test.ts` | 28 | Email verification, forgot/reset password, token revocation, audit logging |
-| `pharmacy.test.ts` | 16 | Profile CRUD, status transitions, public profiles |
-| `inventory.test.ts` | 14 | Stock management, medicine catalog auto-creation |
-| `search.test.ts` | 10 | Geospatial search, distance sorting, availability filtering |
-| `admin.test.ts` | 13 | Pharmacy verification, rejection, admin access control |
-| `catalog.test.ts` | 6 | Autocomplete search, case insensitivity |
-| `dbSafety.test.ts` | 10 | Production database safety guard validation |
-| `health.test.ts` | 3 | Health endpoint, 404 handling |
+| Test File | Covers |
+|---|---|
+| `auth.test.ts` | Registration, login, refresh, me, logout |
+| `auth-enhanced.test.ts` | Email verification, forgot/reset password, token revocation, audit logging |
+| `pharmacy.test.ts` | Profile CRUD, status transitions, public profiles |
+| `inventory.test.ts` | Stock management, catalog auto-creation |
+| `search.test.ts` | Hybrid search (keyword + semantic + geo), target resolution, match types |
+| `admin.test.ts` | Pharmacy verification, rejection, admin access control |
+| `catalog.test.ts` | Autocomplete search, case insensitivity |
+| `customer.test.ts` | CUSTOMER role access control |
+| `notification.test.ts` | CRUD, pagination, bridge integration |
+| `savedSearch.test.ts` | CRUD, limits, duplicates, role enforcement |
+| `eventBus.test.ts` | Emit, subscribe, typed events |
+| `lowStock.test.ts` | Threshold crossing detection, recovery |
+| `availabilityDetector.test.ts` | Detection, dedup, failure-safe lifecycle |
+| `alertService.test.ts` | Background checker, cooldowns, batch processing |
+| `emailWorker.test.ts` | Worker processes each job type |
+| `queues.test.ts` | Redis connectivity, queue operations |
+| `embedding.test.ts` | Text builder, hash computation, backfill service |
+| `semanticSearch.test.ts` | pgvector search, confidence filter, pharmaceutical intent |
+| `queryNormalizer.test.ts` | Hinglish normalization, phrase/word matching |
+| `ocr.test.ts` | Tesseract.js wrapper, timeout handling |
+| `prescriptionExtractor.test.ts` | LLM extraction, Zod validation |
+| `catalogMatcher.test.ts` | Exact/fuzzy/semantic matching tiers |
+| `dbSafety.test.ts` | Production database safety guard |
+| `health.test.ts` | Health endpoint, 404 handling |
 
 ### Running Tests
 
@@ -491,9 +496,13 @@ npm run test:watch             # Watch mode
 npm run test:coverage          # With coverage report
 ```
 
+### Database Safety
+
+A custom 8-check safety guard ([`dbSafety.ts`](server/src/utils/dbSafety.ts)) prevents test cleanup from running against production databases. Tests only execute destructive operations when all safety conditions are met (`NODE_ENV=test`, correct branch, correct host, explicit opt-in).
+
 ### CI/CD Pipeline
 
-GitHub Actions automatically runs on every push/PR to `main` and `develop`:
+GitHub Actions runs automatically on push/PR to `main` and `develop`:
 
 ```
 ┌──────────────┐     ┌──────────────┐
@@ -505,134 +514,65 @@ GitHub Actions automatically runs on every push/PR to `main` and `develop`:
 ┌──────────────┐     ┌──────────────┐
 │ Test Backend │     │Build Frontend│
 │ (Vitest +    │     │ (TypeScript  │
-│  PostGIS)    │     │  + Vite)     │
+│  PostGIS +   │     │  + Vite)     │
+│  pgvector +  │     │              │
+│  Redis)      │     │              │
 └──────────────┘     └──────────────┘
 ```
 
-The CI pipeline uses a **PostGIS Docker service container** to validate geospatial database behavior in an isolated environment.
-
-### Database Safety Infrastructure
-
-A custom 8-check safety guard ([`dbSafety.ts`](server/src/utils/dbSafety.ts)) prevents destructive test operations from running against production databases. Tests only execute cleanup when:
-
-- `NODE_ENV=test`
-- `DATABASE_BRANCH=masas-test`
-- `ALLOW_TEST_DB_RESET=true`
-- Database hostname matches the safe test host
-- Database hostname does NOT match the production host
+The CI pipeline uses custom Docker containers with PostGIS + pgvector and a Redis service container for full integration testing.
 
 ---
 
-## 📊 Database Schema
+## Documentation
 
-```
-┌───────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│    users      │       │   pharmacies     │       │ medicine_catalog │
-│───────────────│       │──────────────────│       │──────────────────│
-│ id            │◄──┐   │ id               │       │ id               │
-│ email         │   │   │ user_id (FK)     │───┐   │ name             │
-│ password_hash │   │   │ name             │   │   │ generic_name     │
-│ name          │   │   │ license_number   │   │   │ manufacturer     │
-│ google_id     │   │   │ address          │   │   │ category         │
-│ is_email_     │   │   │ phone            │   │   │ dosage_form      │
-│   verified    │   │   │ latitude         │   │   └────────┬─────────┘
-│ token_version │   │   │ longitude        │   │            │
-│ role          │   │   │ status           │   │            │
-│ avatar_url    │   │   └──────────┬───────┘   │            │
-└───┬───────────┘   │              │           │            │
-    │               │              │           │            │
-    │  ┌────────────┘   ┌──────────▼───────────▼────────────▼─┐
-    │  │                │     pharmacy_inventory               │
-    │  │                │─────────────────────────────────────│
-    │  │                │ id                                   │
-    │  │                │ pharmacy_id (FK)                     │
-    │  │                │ medicine_id (FK)                     │
-    │  │                │ price · quantity · expiry_date       │
-    │  │                │ is_available                         │
-    │  │                └─────────────────────────────────────┘
-    │  │
-    │  │  ┌────────────────────┐  ┌────────────────────────┐
-    │  ├──│ refresh_tokens     │  │ password_reset_tokens  │
-    │  │  │ token_hash (SHA256)│  │ token_hash (SHA256)    │
-    │  │  │ expires_at         │  │ expires_at · used_at   │
-    │  │  │ revoked_at         │  └────────────────────────┘
-    │  │  └────────────────────┘
-    │  │
-    │  │  ┌────────────────────────┐  ┌────────────────────┐
-    │  ├──│ email_verification_    │  │ auth_audit_logs    │
-    │  │  │   tokens               │  │ action · ip_address│
-    │  │  │ token_hash (SHA256)    │  │ user_agent         │
-    │  │  │ expires_at             │  │ metadata (JSON)    │
-    │  │  └────────────────────────┘  └────────────────────┘
-    │  │
-    └──┘
-```
+Detailed technical documentation is in the [`Documentation/`](Documentation/) folder:
 
-**9 tables** · **2 enums** (`UserRole`, `PharmacyStatus`) · PostGIS geospatial extensions
+| Document | Covers |
+|---|---|
+| [Phase 9 Documentation](Documentation/phase_9_documentation.md) | AI search, embeddings, pgvector, Hinglish normalizer, semantic search, prescription scanner, OCR, LLM extraction, catalog matching, architecture, thresholds, testing |
+| [Phase 8 Documentation](Documentation/phase_8_documentation.md) | Event bus, Socket.io, notifications, low-stock detection, BullMQ, customer role, saved searches, availability detection, background checker |
+| [Phase 1–7 Documentation](Documentation/documentationTillPhase7.md) | Auth, pharmacy management, inventory, geospatial search, admin verification, CI/CD, database safety |
 
 ---
 
-## 📘 API Documentation
+## Engineering Decisions
 
-Interactive Swagger/OpenAPI documentation is available in development mode:
+### Why local AI (Ollama) instead of cloud APIs?
+Zero cost, full privacy (no patient data leaves the machine), works offline, and the provider abstraction makes it trivial to add OpenAI later with a single new class.
 
-```
-http://localhost:5000/api/docs
-```
+### Why Levenshtein for typos instead of just embeddings?
+Embeddings capture *meaning*, not *spelling*. "Paractemol" (typo) might score higher for "crocin" (same use case) than for "paracetamol" (same drug). Edit distance catches spelling errors reliably without semantic confusion.
 
----
+### Why a confidence filter on semantic search?
+Cosine similarity always returns something — there's always a "closest" vector. Without the filter, searching "pizza" would return random medicines. The three-signal gate (pharmaceutical language, Hinglish normalization, high score) prevents this.
 
-## 🎯 Engineering Decisions
+### Why server-side refresh tokens with SHA-256 hashing?
+Enables individual token revocation on logout, mass invalidation on password reset (via `tokenVersion`), and replay detection. Even if the database is compromised, stored hashes can't be used as tokens.
 
-### Why TypeScript End-to-End?
+### Why BullMQ instead of simple cron or fire-and-forget?
+Job persistence across server restarts, automatic retries with exponential backoff, multi-instance safety via Redis locking, and observable failure tracking. Email sending, alert checking, and embedding generation all benefit from this reliability.
 
-The entire codebase (client + server + tests + config) uses TypeScript for compile-time safety, better refactoring confidence, and consistent developer experience across the stack.
-
-### Why Stored Refresh Tokens?
-
-Unlike stateless JWTs, refresh tokens are stored server-side (as SHA-256 hashes) to enable:
-- Individual token revocation on logout
-- Mass invalidation on password reset (via `tokenVersion`)
-- Token rotation with replay detection
-- Audit trail of active sessions
-
-### Why SHA-256 Token Hashing?
-
-Verification and reset tokens are hashed before storage — even if the database is compromised, attackers cannot use the stored hashes to verify emails or reset passwords.
-
-### Why Route-Specific Rate Limiting?
-
-Different endpoints have different abuse profiles. Registration and email-sending endpoints have strict limits (3-5 per 15 minutes) while search remains open for public use.
-
-### Why a Database Safety Guard?
-
-During development, Prisma's `.env` auto-loading caused test cleanup to run against production — potentially truncating real data. The 8-check safety guard ensures this can never happen.
+### Why an event bus?
+Decouples inventory operations from their side effects. Adding a new reaction to inventory changes (SMS notifications, analytics) is just adding a new event listener — no modification to existing service code.
 
 ---
 
-## 🚀 Future Improvements
+## Future Roadmap
 
-- 🐳 Dockerized local development environment
-- 🧪 Testcontainers-based isolated integration testing
-- 📡 Real-time inventory updates with WebSockets
-- 💊 Medicine substitute recommendation engine
-- 🤖 AI-powered shortage prediction
-- 📊 Advanced analytics dashboard
-- 🌐 Multi-city pharmacy scaling
-- ⚡ Redis caching layer
-- ☸️ Kubernetes-ready deployment architecture
-- 📱 Progressive Web App (PWA) support
+- Docker Compose for one-command local development
+- OpenAI provider option for cloud-based AI (provider abstraction already in place)
+- Hindi Devanagari script support in search
+- Handwritten prescription OCR
+- Multi-city pharmacy scaling
+- PWA support for mobile
 
 ---
 
-## 👨‍💻 Author
+## Author
 
 Built by **Anchit Gupta**
 
-Passionate about backend engineering, scalable systems, full-stack development, DevOps & infrastructure, and real-world problem solving.
-
 ---
 
-## ⭐ Support
-
-If you found this project interesting, consider giving it a star ⭐
+If you found this project interesting, consider giving it a ⭐
