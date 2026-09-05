@@ -29,6 +29,7 @@ function mockSemanticResult(
 
 vi.mock('../ai/search/semanticSearch.js', () => ({
   findSemanticCandidates: vi.fn(),
+  hasPharmaceuticalIntent: vi.fn(() => true),
 }));
 
 interface SeedOptions {
