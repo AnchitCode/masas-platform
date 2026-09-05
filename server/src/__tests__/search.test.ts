@@ -27,9 +27,13 @@ function mockSemanticResult(
   };
 }
 
-vi.mock('../ai/search/semanticSearch.js', () => ({
-  findSemanticCandidates: vi.fn(),
-}));
+vi.mock('../ai/search/semanticSearch.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../ai/search/semanticSearch.js')>();
+  return {
+    ...actual,
+    findSemanticCandidates: vi.fn(),
+  };
+});
 
 interface SeedOptions {
   lat: number;
@@ -97,13 +101,13 @@ describe('Search Module', () => {
       expect(res.body.data.meta.normalizedQuery).toBe('pain medicine');
     });
 
-    it('ranks exact match above semantic match (Exact Priority)', async () => {
+    it('suppresses semantic suggestions when exact target is available (Phase 9.2)', async () => {
       // Pharmacy 1: Semantic match, closer
       const p1 = await seedPharmacyWithInventory({ lat: 28.62, lng: 77.21, medicineName: 'ibuprofen' });
       // Pharmacy 2: Exact keyword match, farther
       const p2 = await seedPharmacyWithInventory({ lat: 28.64, lng: 77.23, medicineName: 'paracetamol' });
 
-      // Mock semantic search returning ibuprofen for the query "paracetamol" (just to test ranking)
+      // Mock semantic search returning ibuprofen for the query "paracetamol"
       vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [{ id: p1.medicine.id, name: p1.medicine.name, score: 0.9 }],
         aiUsed: true,
@@ -112,12 +116,10 @@ describe('Search Module', () => {
 
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'paracetamol', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       expect(res.status).toBe(200);
-      expect(res.body.data.results).toHaveLength(2);
-      // P2 (paracetamol) should be first despite being further away, because it's an exact match
+      // Phase 9.2: exact target is available → semantic suggestions suppressed
+      expect(res.body.data.results).toHaveLength(1);
       expect(res.body.data.results[0].medicine.name).toBe('paracetamol');
       expect(res.body.data.results[0].matchType).toBe('exact');
-      expect(res.body.data.results[1].medicine.name).toBe('ibuprofen');
-      expect(res.body.data.results[1].matchType).toBe('semantic');
     });
 
     it('ranks prefix match above semantic match', async () => {
@@ -169,15 +171,18 @@ describe('Search Module', () => {
       expect(res.body.data.meta.aiUsed).toBe(false);
     });
 
-    it('respects existing PostGIS distance tie-breaking within the same tier', async () => {
+    it('suppresses semantic results when synonym-resolved target is available (Phase 9.2)', async () => {
       // Both semantic matches, but p1 is closer
       const p1 = await seedPharmacyWithInventory({ lat: 28.614, lng: 77.209, medicineName: 'med-close' });
       const p2 = await seedPharmacyWithInventory({ lat: 28.620, lng: 77.209, medicineName: 'med-far' });
 
+      // "test" has no pharma intent and no catalog match.
+      // Top candidate med-close scores 0.8 >= SYNONYM_THRESHOLD (0.65),
+      // so resolveTypoTarget resolves "test" → med-close.
       vi.mocked(findSemanticCandidates).mockResolvedValue(mockSemanticResult({
         candidates: [
           { id: p1.medicine.id, name: p1.medicine.name, score: 0.8 },
-          { id: p2.medicine.id, name: p2.medicine.name, score: 0.9 }, // Even if p2 has higher semantic score, if they map to same SQL tier, distance wins
+          { id: p2.medicine.id, name: p2.medicine.name, score: 0.9 },
         ],
         aiUsed: true,
         normalizedQuery: 'test',
@@ -186,16 +191,15 @@ describe('Search Module', () => {
       const res = await request(app).get('/api/v1/search/inventory').query({ q: 'test', lat: 28.6139, lng: 77.209, radiusKm: 10 });
       
       expect(res.status).toBe(200);
-      expect(res.body.data.results).toHaveLength(2);
-      
-      // In our scoring, semantic scores are dynamically mapped 0-60.
-      // So score 0.9 -> 54, score 0.8 -> 48.
-      // Wait! The relevance_score is not binned to a single tier, it uses the exact scaled score.
-      // Because p2's score (54) > p1's score (48), p2 WILL outrank p1 despite distance, UNLESS they have the exact same score.
-      // The user requested: "within the same relevance tier, use distance as the tie-breaker."
-      // Since semantic search provides a continuous score, it acts as a continuous tier.
-      // To test exact same tier:
-      expect(res.body.data.results[0].medicine.name).toBe('med-far'); // Because 54 > 48 relevance.
+      // Phase 9.2: resolved target (med-close) is available → semantic suggestions suppressed,
+      // target re-tagged from 'semantic' to 'exact'
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data.results[0].medicine.name).toBe('med-close');
+      expect(res.body.data.results[0].matchType).toBe('exact');
+      // Target metadata should reflect the resolved target
+      expect(res.body.data.meta.target).toBeDefined();
+      expect(res.body.data.meta.target.name).toBe('med-close');
+      expect(res.body.data.meta.target.isAvailable).toBe(true);
     });
 
     it('preserves existing pagination correctly with hybrid results', async () => {
