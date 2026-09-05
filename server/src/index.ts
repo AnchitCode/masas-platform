@@ -9,7 +9,9 @@ import { initLowStockDetector } from './lib/lowStockDetector.js';
 import { initAvailabilityDetector } from './lib/availabilityDetector.js';
 import { emailWorker } from './jobs/emailWorker.js';
 import { alertWorker } from './jobs/alertWorker.js';
+import { embeddingWorker } from './jobs/embeddingWorker.js';
 import { startAlertScheduler } from './jobs/alertScheduler.js';
+import { initEmbeddingBridge } from './ai/embedding/embeddingBridge.js';
 
 const PORT = env.PORT;
 
@@ -23,6 +25,7 @@ if (env.NODE_ENV !== 'test') {
   bridgeEventsToNotifications();
   initLowStockDetector();
   initAvailabilityDetector();
+  initEmbeddingBridge();
 
   // Start the alert scheduler after the event infrastructure is ready
   startAlertScheduler().catch((err) => {
@@ -42,6 +45,7 @@ const shutdown = async () => {
   await Promise.allSettled([
     emailWorker.close(),
     alertWorker.close(),
+    embeddingWorker.close(),
   ]);
   httpServer.close(() => {
     logger.info('HTTP server closed.');
