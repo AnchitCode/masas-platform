@@ -1,4 +1,4 @@
-# MASAS — Medicine Availability & Shortage Alert System
+# 🏥 MASAS — Medicine Availability & Shortage Alert System
 
 > A full-stack healthcare platform with AI-powered medicine search, prescription scanning, real-time availability alerts, and geospatial pharmacy discovery — built with TypeScript, React, Express, PostgreSQL + PostGIS + pgvector, and Ollama.
 
