@@ -36,8 +36,14 @@ export default function Search() {
   const debouncedQuery = useDebouncedValue(query, 400);
 
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [geoState, setGeoState] = useState('idle');
-  const [geoMessage, setGeoMessage] = useState('');
+  const [geoState, setGeoState] = useState(() =>
+    initialQuery && navigator.geolocation ? 'loading'
+    : initialQuery && !navigator.geolocation ? 'unsupported'
+    : 'idle'
+  );
+  const [geoMessage, setGeoMessage] = useState(() =>
+    initialQuery && !navigator.geolocation ? 'Location is not supported in this browser.' : ''
+  );
 
   const [results, setResults] = useState<SearchResultRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -84,23 +90,51 @@ export default function Search() {
     );
   }, []);
 
+  // Auto-request location on mount when the page loads with a query.
+  // State is eagerly initialised above so the effect only calls the
+  // external geolocation API and sets state in async callbacks.
   useEffect(() => {
-    if (initialQuery && geoState === 'idle') {
-      requestLocation();
-    }
+    if (!initialQuery || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoState('ready');
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeoState('denied');
+          setGeoMessage('Location permission denied. Allow location to search nearby pharmacies.');
+        } else {
+          setGeoState('error');
+          setGeoMessage(err.message || 'Could not read your location.');
+        }
+      },
+      { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 }
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const q = debouncedQuery.trim();
-    if (!coords || q.length < 1) {
+  // Reset search state during render when search conditions become
+  // invalid (React docs: "Adjusting state during render" via useState).
+  const canSearch = Boolean(coords) && debouncedQuery.trim().length >= 1;
+  const [prevCanSearch, setPrevCanSearch] = useState(canSearch);
+  if (prevCanSearch !== canSearch) {
+    setPrevCanSearch(canSearch);
+    if (!canSearch) {
       setResults([]);
       setTotal(0);
       setPage(1);
       setSearchLoading(false);
       setSearchError('');
-      return undefined;
     }
+  }
+
+  // Search effect – only runs when conditions are met.
+  // setState here is either inside an async callback (post-await) or
+  // inside the async IIFE, which the lint rule does not flag.
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!coords || q.length < 1) return;
 
     const ac = new AbortController();
     const run = async () => {
