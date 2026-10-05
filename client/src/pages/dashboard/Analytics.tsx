@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Download,
   Activity,
@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import KpiTile from '../../components/ui/KpiTile';
 import TrendBadge from '../../components/analytics/TrendBadge';
 import SparklineChart from '../../components/analytics/SparklineChart';
 import HealthScoreChart from '../../components/analytics/HealthScoreChart';
@@ -55,18 +54,17 @@ export default function Analytics() {
   }, []);
 
   // Load trends when period changes
-  const loadTrends = useCallback(async () => {
-    try {
-      const res = await analyticsService.getTrends(trendPeriod);
-      setTrends(res.data.data.snapshots);
-    } catch (err) {
-      console.error('Failed to load trends:', err);
-    }
-  }, [trendPeriod]);
-
   useEffect(() => {
+    const loadTrends = async () => {
+      try {
+        const res = await analyticsService.getTrends(trendPeriod);
+        setTrends(res.data.data.snapshots);
+      } catch (err) {
+        console.error('Failed to load trends:', err);
+      }
+    };
     loadTrends();
-  }, [loadTrends]);
+  }, [trendPeriod]);
 
   // Load search visibility
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   Store,
@@ -10,7 +10,6 @@ import {
 import PageHeader from '../../components/ui/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import KpiTile from '../../components/ui/KpiTile';
-import TrendBadge from '../../components/analytics/TrendBadge';
 import SearchVolumeChart from '../../components/analytics/SearchVolumeChart';
 import TopSearchesChart from '../../components/analytics/TopSearchesChart';
 import DemandGapsTable from '../../components/analytics/DemandGapsTable';
@@ -78,32 +77,30 @@ export default function AdminAnalytics() {
   }, []);
 
   // Search trends
-  const loadTrends = useCallback(async () => {
-    try {
-      const res = await adminService.getSearchTrends(trendPeriod);
-      setSearchTrends(res.data.data.trends);
-    } catch (err) {
-      console.error('Failed to load search trends:', err);
-    }
+  useEffect(() => {
+    const loadTrends = async () => {
+      try {
+        const res = await adminService.getSearchTrends(trendPeriod);
+        setSearchTrends(res.data.data.trends);
+      } catch (err) {
+        console.error('Failed to load search trends:', err);
+      }
+    };
+    loadTrends();
   }, [trendPeriod]);
 
-  useEffect(() => {
-    loadTrends();
-  }, [loadTrends]);
-
   // Top searches
-  const loadTop = useCallback(async () => {
-    try {
-      const res = await adminService.getTopSearches(topPeriod, 10);
-      setTopSearches(res.data.data.searches);
-    } catch (err) {
-      console.error('Failed to load top searches:', err);
-    }
-  }, [topPeriod]);
-
   useEffect(() => {
+    const loadTop = async () => {
+      try {
+        const res = await adminService.getTopSearches(topPeriod, 10);
+        setTopSearches(res.data.data.searches);
+      } catch (err) {
+        console.error('Failed to load top searches:', err);
+      }
+    };
     loadTop();
-  }, [loadTop]);
+  }, [topPeriod]);
 
   // Demand gaps
   useEffect(() => {
