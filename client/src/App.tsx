@@ -13,6 +13,7 @@ import DashboardLayout from './pages/dashboard/DashboardLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Profile from './pages/dashboard/Profile';
 import Inventory from './pages/dashboard/Inventory';
+import Analytics from './pages/dashboard/Analytics';
 import Search from './pages/Search';
 import SavedSearches from './pages/SavedSearches';
 import PublicPharmacy from './pages/PublicPharmacy';
@@ -20,6 +21,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPharmacies from './pages/admin/AdminPharmacies';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
 
 function App() {
   return (
@@ -58,6 +60,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="inventory" element={<Inventory />} />
+            <Route path="analytics" element={<Analytics />} />
           </Route>
 
           {/* Admin routes — ADMIN role required */}
@@ -71,6 +74,7 @@ function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="pharmacies" element={<AdminPharmacies />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
           </Route>
 
           {/* Fallback */}

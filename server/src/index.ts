@@ -7,10 +7,14 @@ import { bridgeEventsToSocket } from './lib/socketEventBridge.js';
 import { bridgeEventsToNotifications } from './lib/notificationEventBridge.js';
 import { initLowStockDetector } from './lib/lowStockDetector.js';
 import { initAvailabilityDetector } from './lib/availabilityDetector.js';
+import { initAnalyticsEventBridge } from './lib/analyticsEventBridge.js';
 import { emailWorker } from './jobs/emailWorker.js';
 import { alertWorker } from './jobs/alertWorker.js';
 import { embeddingWorker } from './jobs/embeddingWorker.js';
+import { analyticsAggregationWorker } from './jobs/analyticsAggregationWorker.js';
+import { analyticsCleanupWorker } from './jobs/analyticsCleanupWorker.js';
 import { startAlertScheduler } from './jobs/alertScheduler.js';
+import { startAnalyticsScheduler } from './jobs/analyticsScheduler.js';
 import { initEmbeddingBridge } from './ai/embedding/embeddingBridge.js';
 
 const PORT = env.PORT;
@@ -26,10 +30,16 @@ if (env.NODE_ENV !== 'test') {
   initLowStockDetector();
   initAvailabilityDetector();
   initEmbeddingBridge();
+  initAnalyticsEventBridge();
 
   // Start the alert scheduler after the event infrastructure is ready
   startAlertScheduler().catch((err) => {
     logger.error('Failed to start alert scheduler', { error: String(err) });
+  });
+
+  // Start the analytics scheduler (Phase 10.3)
+  startAnalyticsScheduler().catch((err) => {
+    logger.error('Failed to start analytics scheduler', { error: String(err) });
   });
 }
 
@@ -46,6 +56,8 @@ const shutdown = async () => {
     emailWorker.close(),
     alertWorker.close(),
     embeddingWorker.close(),
+    analyticsAggregationWorker.close(),
+    analyticsCleanupWorker.close(),
   ]);
   httpServer.close(() => {
     logger.info('HTTP server closed.');

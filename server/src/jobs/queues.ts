@@ -19,6 +19,7 @@ import { createRedisConnection } from '../config/redis.js';
 const emailQueueConnection = createRedisConnection('emailQueue');
 const alertQueueConnection = createRedisConnection('alertQueue');
 const embeddingQueueConnection = createRedisConnection('embeddingQueue');
+const analyticsQueueConnection = createRedisConnection('analyticsQueue');
 
 // ─── Email Queue ─────────────────────────────────────────────────
 // Handles all email sending: verification, password reset, notification alerts.
@@ -61,11 +62,25 @@ export const embeddingQueue = new Queue('embeddings', {
   },
 });
 
+// ─── Analytics Queue (Phase 10.3) ────────────────────────────────
+// Handles hourly metrics aggregation and daily rollups.
+export const analyticsQueue = new Queue('analytics', {
+  connection: analyticsQueueConnection,
+  prefix: 'masas',
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 5000 },
+    removeOnComplete: { count: 50 },
+    removeOnFail: { count: 100 },
+  },
+});
+
 // ─── Queue Names (exported constants for workers) ────────────────
 export const QUEUE_NAMES = {
   EMAIL: 'email',
   ALERTS: 'alerts',
   EMBEDDINGS: 'embeddings',
+  ANALYTICS: 'analytics',
 } as const;
 
 export const QUEUE_PREFIX = 'masas';

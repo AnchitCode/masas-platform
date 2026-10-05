@@ -124,4 +124,14 @@ router.patch(
   adminController.updatePharmacyStatus
 );
 
+// ─── Analytics Endpoints (Phase 10.5) ───────────────────────────
+import adminAnalyticsController from './adminAnalytics.controller.js';
+
+router.get('/analytics/overview', adminAnalyticsController.getOverview);
+router.get('/analytics/search-trends', adminAnalyticsController.getSearchTrends);
+router.get('/analytics/top-searches', adminAnalyticsController.getTopSearches);
+router.get('/analytics/demand-gaps', adminAnalyticsController.getDemandGaps);
+router.get('/analytics/pharmacy-leaderboard', adminAnalyticsController.getPharmacyLeaderboard);
+
 export default router;
+

@@ -38,7 +38,7 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }: Sidebar
       items: [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Overview', end: true },
         { to: '/dashboard/inventory', icon: Package, label: 'Inventory' },
-        { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics', comingSoon: true },
+        { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
       ],
     },
     {
@@ -56,6 +56,7 @@ export default function Sidebar({ open, onClose, variant = 'pharmacy' }: Sidebar
       items: [
         { to: '/admin', icon: LayoutDashboard, label: 'Overview', end: true },
         { to: '/admin/pharmacies', icon: Store, label: 'Pharmacies' },
+        { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
       ],
     },
     {

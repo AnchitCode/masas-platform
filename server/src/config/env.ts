@@ -62,6 +62,10 @@ const env: EnvConfig = {
 
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   ALERT_CRON_PATTERN: process.env.ALERT_CRON_PATTERN || '*/30 * * * *',
+  ANALYTICS_CRON_PATTERN: process.env.ANALYTICS_CRON_PATTERN || '0 * * * *',
+  ANALYTICS_CLEANUP_CRON_PATTERN: process.env.ANALYTICS_CLEANUP_CRON_PATTERN || '0 3 * * *',
+  ANALYTICS_EVENT_TTL_DAYS: parseInt(process.env.ANALYTICS_EVENT_TTL_DAYS || '90', 10),
+  SEARCH_ANALYTICS_TTL_DAYS: parseInt(process.env.SEARCH_ANALYTICS_TTL_DAYS || '180', 10),
 
   // ── AI Configuration (Phase 9) ───────────────────────────────
   // All AI vars have safe defaults. AI is disabled by default.

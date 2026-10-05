@@ -91,6 +91,10 @@ app.use('/api/v1/auth', authRoutes);
 import pharmacyRoutes from './modules/pharmacy/pharmacy.routes.js';
 app.use('/api/v1/pharmacy', pharmacyRoutes);
 
+// Pharmacy analytics routes (Phase 10.4)
+import pharmacyAnalyticsRoutes from './modules/analytics/pharmacyAnalytics.routes.js';
+app.use('/api/v1/pharmacy/analytics', pharmacyAnalyticsRoutes);
+
 // Catalog routes
 import catalogRoutes from './modules/catalog/catalog.routes.js';
 app.use('/api/v1/catalog', catalogRoutes);

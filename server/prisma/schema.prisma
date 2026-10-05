@@ -258,3 +258,94 @@ model AvailabilityAlert {
   @@map("availability_alerts")
 }
 
+// ==================== ANALYTICS MODELS (Phase 10) ====================
+
+/// Append-only log of analytics-relevant business actions.
+/// Not event sourcing — this is a denormalized analytics log for time-series counts,
+/// admin oversight, and audit trails. Events are immutable once written.
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  type       String                         // "INVENTORY_CREATED", "PHARMACY_VERIFIED", etc.
+  actorId    String?  @map("actor_id")      // userId who triggered (nullable for system events)
+  actorRole  String?  @map("actor_role")    // "CUSTOMER" | "PHARMACY" | "ADMIN" | "SYSTEM"
+  pharmacyId String?  @map("pharmacy_id")   // first-class field — 7 of 9 logged events carry pharmacyId
+  targetId   String?  @map("target_id")     // inventoryId, medicineId, savedSearchId, etc.
+  targetType String?  @map("target_type")   // "INVENTORY" | "MEDICINE" | "PHARMACY"
+  metadata   Json?                          // event-specific payload (quantity, medicineName, etc.)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([type, createdAt])               // time-range aggregations by type
+  @@index([pharmacyId, createdAt])         // per-pharmacy analytics
+  @@index([createdAt])                     // TTL cleanup
+  @@map("analytics_events")
+}
+
+/// One row per search request. Coordinates stored at reduced precision for privacy.
+model SearchQuery {
+  id               String   @id @default(uuid())
+  query            String                    // raw user query (intended: medicine name; treat as user-provided text)
+  normalizedQuery  String?  @map("normalized_query")
+  latitude         Float                     // reduced to 2 decimal places before storage
+  longitude        Float                     // reduced to 2 decimal places before storage
+  radiusKm         Float    @map("radius_km")
+  resultCount      Int      @map("result_count")   // total from COUNT(*) OVER()
+  aiUsed           Boolean  @default(false) @map("ai_used")
+  targetMedicineId String?  @map("target_medicine_id")
+  targetFound      Boolean? @map("target_found")
+  responseTimeMs   Int?     @map("response_time_ms")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  impressions SearchImpression[]
+
+  @@index([createdAt])
+  @@index([targetFound, createdAt])          // "unmet demand" queries
+  @@index([query, createdAt])                // top queries over time
+  @@map("search_queries")
+}
+
+/// One row per pharmacy that appeared in a search result. Normalized join table
+/// that enables pharmacy search visibility, top queries, leaderboard, and trends.
+model SearchImpression {
+  id            String   @id @default(uuid())
+  searchQueryId String   @map("search_query_id")
+  pharmacyId    String   @map("pharmacy_id")
+  medicineId    String   @map("medicine_id")
+  matchType     String   @map("match_type")   // "exact" | "partial" | "generic" | "semantic"
+  position      Int                            // 0-indexed GLOBAL rank across all pages
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  searchQuery SearchQuery @relation(fields: [searchQueryId], references: [id], onDelete: Cascade)
+
+  @@index([pharmacyId, createdAt])            // pharmacy visibility analytics
+  @@index([medicineId, createdAt])            // per-medicine search demand
+  @@index([searchQueryId])                    // join efficiency
+  @@map("search_impressions")
+}
+
+/// Pre-aggregated pharmacy metrics snapshot. Inventory fields are point-in-time
+/// observations at aggregation time; counting fields are period-bounded aggregates.
+model PharmacyMetricsSnapshot {
+  id               String   @id @default(uuid())
+  pharmacyId       String   @map("pharmacy_id")
+  period           String                    // "hourly" | "daily"
+  periodStart      DateTime @map("period_start")
+  totalSkus        Int      @map("total_skus")          // point-in-time observation
+  inStockSkus      Int      @map("in_stock_skus")       // point-in-time observation
+  outOfStockSkus   Int      @map("out_of_stock_skus")   // point-in-time observation
+  lowStockSkus     Int      @map("low_stock_skus")      // point-in-time observation
+  expiredSkus      Int      @map("expired_skus")        // point-in-time observation
+  expiringSoonSkus Int      @map("expiring_soon_skus")  // point-in-time observation
+  totalQuantity    Int      @map("total_quantity")       // point-in-time observation
+  avgPrice         Float    @map("avg_price")            // point-in-time observation
+  healthScore      Int      @map("health_score")         // computed by shared algorithm from observation
+  searchImpressions Int     @default(0) @map("search_impressions")  // period-bounded COUNT
+  alertsTriggered  Int      @default(0) @map("alerts_triggered")    // period-bounded COUNT
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([pharmacyId, period, periodStart])   // upsert key — idempotent
+  @@index([pharmacyId, period, periodStart])
+  @@index([periodStart])                         // TTL cleanup
+  @@map("pharmacy_metrics_snapshots")
+}
+

@@ -87,6 +87,10 @@ export interface EnvConfig {
   RATE_LIMIT_MAX: number;
   REDIS_URL: string;
   ALERT_CRON_PATTERN: string;
+  ANALYTICS_CRON_PATTERN: string;
+  ANALYTICS_CLEANUP_CRON_PATTERN: string;
+  ANALYTICS_EVENT_TTL_DAYS: number;
+  SEARCH_ANALYTICS_TTL_DAYS: number;
 
   // ── AI Configuration (Phase 9) ───────────────────────────────
   AI_ENABLED: boolean;

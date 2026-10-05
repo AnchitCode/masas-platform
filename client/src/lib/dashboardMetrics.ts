@@ -1,6 +1,10 @@
 /**
  * Derives operational KPIs and health signals from inventory rows.
  * Pure functions — no I/O; keeps Dashboard honest when APIs expand.
+ *
+ * CANONICAL SOURCE: server/src/utils/healthScore.ts (Phase 10.3)
+ * The server-side health score algorithm MUST produce identical results.
+ * If you change the scoring formula here, update healthScore.ts as well.
  */
 import type { InventoryItem, Pharmacy } from '../types';
 

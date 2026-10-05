@@ -41,17 +41,42 @@ export default async function globalSetup() {
     const serverRoot = path.resolve(__dirname, '../..');
     
     console.log('🔄 Running global database migration...');
-    execSync('npx prisma migrate deploy', {
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        DATABASE_URL: process.env.DATABASE_URL,
-      },
-      cwd: serverRoot,
-      stdio: 'inherit', // Show output directly in the console
-    });
-    
-    console.log('✅ Global migration succeeded.\n');
+    try {
+      execSync('npx prisma migrate deploy', {
+        env: {
+          ...process.env,
+          NODE_ENV: 'test',
+          DATABASE_URL: process.env.DATABASE_URL,
+        },
+        cwd: serverRoot,
+        stdio: 'pipe',
+      });
+      console.log('✅ Global migration succeeded.\n');
+    } catch (migrateErr: unknown) {
+      // execSync with stdio:'pipe' puts output in err.stderr / err.stdout
+      const stderr = (migrateErr as { stderr?: Buffer })?.stderr?.toString() || '';
+      const stdout = (migrateErr as { stdout?: Buffer })?.stdout?.toString() || '';
+      const combined = stderr + stdout + (migrateErr instanceof Error ? migrateErr.message : '');
+      
+      if (combined.includes('advisory') || combined.includes('P1002') || combined.includes('timed out')) {
+        console.log('⚠️  prisma migrate deploy failed (advisory lock timeout). Falling back to prisma db push...');
+        execSync('npx prisma db push --accept-data-loss', {
+          env: {
+            ...process.env,
+            NODE_ENV: 'test',
+            DATABASE_URL: process.env.DATABASE_URL,
+          },
+          cwd: serverRoot,
+          stdio: 'inherit',
+        });
+        console.log('✅ Global db push succeeded.\n');
+      } else {
+        // Log the actual error for debugging, then rethrow
+        console.error('Migration stderr:', stderr);
+        console.error('Migration stdout:', stdout);
+        throw migrateErr;
+      }
+    }
 
   } finally {
     await prisma.$disconnect();

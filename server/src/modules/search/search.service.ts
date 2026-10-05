@@ -4,6 +4,7 @@ import type { SearchInventoryQuery } from './search.validation.js';
 import { findSemanticCandidates, hasPharmaceuticalIntent } from '../../ai/search/semanticSearch.js';
 import type { SemanticCandidate } from '../../ai/search/semanticSearch.js';
 import logger from '../../utils/logger.js';
+import { logSearchAnalytics, roundCoord } from './searchAnalytics.js';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -365,6 +366,7 @@ function filterCandidatesForQuery(
  * "no results found" and render semantic matches separately.
  */
 const searchPublicInventory = async ({ q, lat, lng, radiusKm, page, limit }: SearchInventoryQuery) => {
+  const startTime = Date.now();
   const radiusMeters = radiusKm * 1000;
   const offset = (page - 1) * limit;
   const pattern = `%${q}%`;
@@ -554,7 +556,7 @@ const searchPublicInventory = async ({ q, lat, lng, radiusKm, page, limit }: Sea
     });
   }
 
-  return {
+  const responseData = {
     results,
     total,
     page,
@@ -565,6 +567,29 @@ const searchPublicInventory = async ({ q, lat, lng, radiusKm, page, limit }: Sea
       target: targetMeta,
     },
   };
+
+  // Fire-and-forget search analytics (Phase 10.2)
+  // Analytics failure never affects search responses.
+  void logSearchAnalytics({
+    query: q,
+    normalizedQuery: aiUsed && normalizedQuery !== q.toLowerCase().trim() ? normalizedQuery : null,
+    latitude: roundCoord(lat),
+    longitude: roundCoord(lng),
+    radiusKm,
+    resultCount: total,
+    aiUsed,
+    targetMedicineId: target?.id ?? null,
+    targetFound: targetMeta?.isAvailable ?? null,
+    responseTimeMs: Date.now() - startTime,
+    impressions: results.map((r, i) => ({
+      pharmacyId: r.pharmacy.id,
+      medicineId: r.medicine.id,
+      matchType: r.matchType,
+      position: (page - 1) * limit + i,
+    })),
+  }).catch(() => {});
+
+  return responseData;
 };
 
 export {

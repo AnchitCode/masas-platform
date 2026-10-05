@@ -35,6 +35,28 @@ const adminService = {
   updatePharmacyStatus(id: string, data: { status: string; rejectionReason?: string }) {
     return api.patch(`/admin/pharmacies/${id}/status`, data);
   },
+
+  // ── Analytics (Phase 10.8) ───────────────────────────────────
+
+  getAnalyticsOverview() {
+    return api.get('/admin/analytics/overview');
+  },
+
+  getSearchTrends(period: '7d' | '30d' = '7d') {
+    return api.get('/admin/analytics/search-trends', { params: { period } });
+  },
+
+  getTopSearches(period: '7d' | '30d' = '7d', limit = 20) {
+    return api.get('/admin/analytics/top-searches', { params: { period, limit } });
+  },
+
+  getDemandGaps(period: '7d' | '30d' = '30d', limit = 20) {
+    return api.get('/admin/analytics/demand-gaps', { params: { period, limit } });
+  },
+
+  getPharmacyLeaderboard(limit = 20) {
+    return api.get('/admin/analytics/pharmacy-leaderboard', { params: { limit } });
+  },
 };
 
 export default adminService;

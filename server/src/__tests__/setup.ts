@@ -62,7 +62,7 @@ beforeEach(async () => {
   await assertTestDatabaseSafety(prisma, 'beforeEach — TRUNCATE');
 
   await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE "availability_alerts", "saved_searches", "notifications", "auth_audit_logs", "refresh_tokens", "password_reset_tokens", "email_verification_tokens", "pharmacy_inventory", "pharmacies", "medicine_catalog", "users" CASCADE
+    TRUNCATE TABLE "pharmacy_metrics_snapshots", "search_impressions", "search_queries", "analytics_events", "availability_alerts", "saved_searches", "notifications", "auth_audit_logs", "refresh_tokens", "password_reset_tokens", "email_verification_tokens", "pharmacy_inventory", "pharmacies", "medicine_catalog", "users" CASCADE
   `);
 
   // Redis cleanup — flush only masas: prefixed BullMQ keys
